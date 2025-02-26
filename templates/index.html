@@ -328,246 +328,245 @@
     </div>
 
     <script>
-        const ICONS = {
-            'codigo_unico': 'fas fa-hashtag',
-            'data_cadastro': 'fas fa-calendar-check',
-            'data_plantio': 'fas fa-calendar-alt',
-            'documento': 'fas fa-id-card',
-            'exposicao_sol': 'fas fa-sun',
-            'frequencia_rega': 'fas fa-tint',
-            'nome_vegetal': 'fas fa-seedling',
-            'observacoes': 'fas fa-comment',
-            'tempo_colheita': 'fas fa-clock',
-            'tipo_documento': 'fas fa-file-alt',
-            'tipo_solo': 'fas fa-mountain'
-        };
+const ICONS = {
+    'codigo_unico': 'fas fa-hashtag',
+    'data_cadastro': 'fas fa-calendar-check',
+    'data_plantio': 'fas fa-calendar-alt',
+    'documento': 'fas fa-id-card',
+    'exposicao_sol': 'fas fa-sun',
+    'frequencia_rega': 'fas fa-tint',
+    'nome_vegetal': 'fas fa-seedling',
+    'observacoes': 'fas fa-comment',
+    'tempo_colheita': 'fas fa-clock',
+    'tipo_documento': 'fas fa-file-alt',
+    'tipo_solo': 'fas fa-mountain'
+};
 
-        const LABELS = {
-            'codigo_unico': 'Código Único',
-            'data_cadastro': 'Data do Cadastro',
-            'data_plantio': 'Data do Plantio',
-            'documento': 'Documento',
-            'exposicao_sol': 'Exposição ao Sol',
-            'frequencia_rega': 'Frequência de Rega',
-            'nome_vegetal': 'Nome do Vegetal',
-            'observacoes': 'Observações',
-            'tempo_colheita': 'Tempo até Colheita',
-            'tipo_documento': 'Tipo de Documento',
-            'tipo_solo': 'Tipo de Solo'
-        };
+const LABELS = {
+    'codigo_unico': 'Código Único',
+    'data_cadastro': 'Data do Cadastro',
+    'data_plantio': 'Data do Plantio',
+    'documento': 'Documento',
+    'exposicao_sol': 'Exposição ao Sol',
+    'frequencia_rega': 'Frequência de Rega',
+    'nome_vegetal': 'Nome do Vegetal',
+    'observacoes': 'Observações',
+    'tempo_colheita': 'Tempo até Colheita',
+    'tipo_documento': 'Tipo de Documento',
+    'tipo_solo': 'Tipo de Solo'
+};
 
-        // Ordem de exibição das informações
-        const DISPLAY_ORDER = [
-            'codigo_unico',
-            'data_cadastro',
-            'data_plantio',
-            'documento',
-            'exposicao_sol',
-            'frequencia_rega',
-            'nome_vegetal',
-            'observacoes',
-            'tempo_colheita',
-            'tipo_documento',
-            'tipo_solo'
-        ];
+const DISPLAY_ORDER = [
+    'codigo_unico',
+    'data_cadastro',
+    'data_plantio',
+    'documento',
+    'exposicao_sol',
+    'frequencia_rega',
+    'nome_vegetal',
+    'observacoes',
+    'tempo_colheita',
+    'tipo_documento',
+    'tipo_solo'
+];
 
-        // Aplica máscaras aos campos
-        $(document).ready(function(){
-            function aplicarMascara() {
-                const tipo = $('input[name="tipo_documento"]:checked').val();
-                const campo = $('#documento');
-                
-                campo.val(''); // Limpa o campo
-                if (tipo === 'cpf') {
-                    campo.mask('000.000.000-00');
-                } else {
-                    campo.mask('00.000.000/0000-00');
-                }
-            }
-
-            // Aplica máscara inicial
-            aplicarMascara();
-
-            // Atualiza máscara quando mudar o tipo de documento
-            $('input[name="tipo_documento"]').change(aplicarMascara);
-        });
-
-        // Validação do documento em tempo real
-        let timeoutId;
-        document.getElementById('documento').addEventListener('input', function(e) {
-            clearTimeout(timeoutId);
-            const campo = e.target;
-            const tipo = document.querySelector('input[name="tipo_documento"]:checked').value;
-            
-            timeoutId = setTimeout(() => {
-                const formData = new FormData();
-                formData.append('documento', campo.value);
-                formData.append('tipo', tipo);
-                
-                fetch('/validar-documento', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.valido) {
-                        campo.classList.remove('is-invalid');
-                        campo.classList.add('is-valid');
-                    } else {
-                        campo.classList.remove('is-valid');
-                        campo.classList.add('is-invalid');
-                    }
-                });
-            }, 300);
-        });
-
-        let html5QrcodeScanner = null;
-        let dadosPlantioAtual = null;
-
-        function iniciarLeitorQR() {
-            const modal = new bootstrap.Modal(document.getElementById('qrReaderModal'));
-            modal.show();
-
-            if (!html5QrcodeScanner) {
-                html5QrcodeScanner = new Html5QrcodeScanner(
-                    "reader", 
-                    { 
-                        fps: 10,
-                        qrbox: {width: 250, height: 250},
-                        aspectRatio: 1.0
-                    }
-                );
-                
-                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-            }
+$(document).ready(function(){
+    // Função para identificar tipo de documento
+    function identificarTipoDocumento(valor) {
+        // Remove tudo que não for número
+        const numeroLimpo = valor.replace(/[^\d]/g, '');
+        
+        // Se tiver 11 dígitos, é CPF
+        if (numeroLimpo.length === 11) {
+            $('#cpf').prop('checked', true);
+            return 'cpf';
         }
+        // Se tiver 14 dígitos, é CNPJ
+        else if (numeroLimpo.length === 14) {
+            $('#cnpj').prop('checked', true);
+            return 'cnpj';
+        }
+        return null;
+    }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            try {
-                // Para o scanner
+    // Adicionar evento de input no campo documento
+    $('#documento').on('input', function() {
+        const valor = $(this).val();
+        const tipo = identificarTipoDocumento(valor);
+        
+        if (tipo === 'cpf') {
+            $(this).mask('000.000.000-00');
+        } else if (tipo === 'cnpj') {
+            $(this).mask('00.000.000/0000-00');
+        }
+    });
+
+    function aplicarMascara() {
+        const tipo = $('input[name="tipo_documento"]:checked').val();
+        const campo = $('#documento');
+        const valor = campo.val();
+        
+        if (tipo === 'cpf') {
+            campo.mask('000.000.000-00');
+        } else if (tipo === 'cnpj') {
+            campo.mask('00.000.000/0000-00');
+        }
+    }
+
+    // Eventos originais mantidos
+    $('input[name="tipo_documento"]').change(aplicarMascara);
+    aplicarMascara();
+
+    // Configuração do leitor QR Code
+    let html5QrcodeScanner = null;
+
+    window.iniciarLeitorQR = function() {
+        const modal = new bootstrap.Modal(document.getElementById('qrReaderModal'));
+        modal.show();
+
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", { fps: 10, qrbox: 250 }
+            );
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+    };
+
+    function onScanSuccess(decodedText) {
+        try {
+            const data = JSON.parse(decodedText);
+            preencherModalInfo(data);
+            
+            const qrModal = bootstrap.Modal.getInstance(document.getElementById('qrReaderModal'));
+            qrModal.hide();
+            
+            const infoModal = new bootstrap.Modal(document.getElementById('infoModal'));
+            infoModal.show();
+
+            if (html5QrcodeScanner) {
                 html5QrcodeScanner.clear();
                 html5QrcodeScanner = null;
-
-                // Fecha o modal do leitor
-                const readerModal = bootstrap.Modal.getInstance(document.getElementById('qrReaderModal'));
-                readerModal.hide();
-
-                // Converte o texto do QR code em objeto
-                const dados = JSON.parse(decodedText);
-                dadosPlantioAtual = dados;
-
-                // Exibe o código no cabeçalho do modal
-                document.getElementById('modal-codigo').textContent = dados.codigo_unico;
-
-                // Cria o HTML com as informações na ordem especificada
-                const infoHtml = DISPLAY_ORDER
-                    .filter(key => dados[key])
-                    .map(key => `
-                        <div class="plant-info-item">
-                            <i class="${ICONS[key]}"></i>
-                            <span class="plant-info-label">${LABELS[key]}:</span>
-                            <span class="plant-info-value">${dados[key]}</span>
-                        </div>
-                    `)
-                    .join('');
-
-                // Exibe as informações no modal
-                document.getElementById('qrCodeInfo').innerHTML = infoHtml;
-                
-                // Abre o modal de informações
-                const infoModal = new bootstrap.Modal(document.getElementById('infoModal'));
-                infoModal.show();
-            } catch (error) {
-                console.error('Erro ao processar QR Code:', error);
-                alert('Erro ao processar o QR Code. Verifique se é um código válido.');
             }
+        } catch (error) {
+            console.error("Erro ao processar QR Code:", error);
+            alert("QR Code inválido!");
+        }
+    }
+
+    $('#plantio-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!this.checkValidity()) {
+            e.stopPropagation();
+            $(this).addClass('was-validated');
+            return;
         }
 
-        function onScanFailure(error) {
-            // console.warn(`Erro na leitura do QR Code: ${error}`);
-        }
-
-        function gerarPDF() {
-            if (!dadosPlantioAtual) {
-                alert('Nenhuma informação disponível para gerar o PDF');
-                return;
-            }
-
-            fetch('/gerar-pdf', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(dadosPlantioAtual)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Cria um link para download do PDF
-                    const link = document.createElement('a');
-                    link.href = `data:application/pdf;base64,${data.pdf}`;
-                    link.download = `plantio_${dadosPlantioAtual.codigo_unico}.pdf`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                } else {
-                    alert(data.error || 'Erro ao gerar PDF');
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao gerar o PDF');
-            });
-        }
-
-        document.getElementById('plantio-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(this);
-            
-            fetch('/cadastrar', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Exibe o QR Code
-                    document.getElementById('qrcode-image').src = 'data:image/png;base64,' + data.qr_code;
-                    document.getElementById('qrcode-container').classList.remove('hidden');
-                    document.getElementById('plantio-form').classList.add('hidden');
-                    
-                    // Exibe o código único no cabeçalho
-                    document.getElementById('codigo-unico').innerHTML = `<strong>Código: ${data.info.codigo_unico}</strong>`;
-                    
-                    // Exibe as informações cadastradas
-                    const infoHtml = Object.entries(data.info)
-                        .map(([key, value]) => `
-                            <div class="plant-info-item">
-                                <i class="${ICONS[key]}"></i>
-                                <span class="plant-info-label">${LABELS[key]}:</span>
-                                <span class="plant-info-value">${value}</span>
-                            </div>
-                        `)
-                        .join('');
-                    document.getElementById('info-details').innerHTML = infoHtml;
-                } else {
-                    alert(data.error || 'Erro ao processar o cadastro');
-                }
-            })
-            .catch(error => {
-                console.error('Erro:', error);
-                alert('Erro ao processar o cadastro');
-            });
+        const formData = new FormData(this);
+        const jsonData = {};
+        formData.forEach((value, key) => {
+            jsonData[key] = value;
         });
 
-        function downloadQRCode() {
-            const img = document.getElementById('qrcode-image');
-            const link = document.createElement('a');
-            link.download = 'qrcode_plantio.png';
-            link.href = img.src;
-            link.click();
-        }
+        fetch('/cadastrar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                $('#qrcode-image').attr('src', data.qr_code);
+                $('#codigo-unico').text(data.codigo_unico);
+                
+                const infoHtml = Object.entries(data)
+                    .filter(([key]) => key !== 'success' && key !== 'qr_code')
+                    .map(([key, value]) => {
+                        const icon = ICONS[key] || 'fas fa-info';
+                        const label = LABELS[key] || key;
+                        return `
+                            <div class="plant-info-item">
+                                <i class="${icon}"></i>
+                                <span class="plant-info-label">${label}:</span>
+                                <span class="plant-info-value">${value}</span>
+                            </div>
+                        `;
+                    })
+                    .join('');
+                
+                $('#info-details').html(infoHtml);
+                $('#plantio-form').hide();
+                $('#qrcode-container').removeClass('hidden');
+            } else {
+                alert('Erro ao cadastrar: ' + (data.message || 'Erro desconhecido'));
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Erro ao cadastrar');
+        });
+    });
+});
+
+function downloadQRCode() {
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
+    link.href = document.getElementById('qrcode-image').src;
+    link.click();
+}
+
+function preencherModalInfo(data) {
+    $('#modal-codigo').text(data.codigo_unico);
+    
+    const infoHtml = DISPLAY_ORDER
+        .filter(key => data[key] !== undefined)
+        .map(key => {
+            const icon = ICONS[key] || 'fas fa-info';
+            const label = LABELS[key] || key;
+            return `
+                <div class="plant-info-item">
+                    <i class="${icon}"></i>
+                    <span class="plant-info-label">${label}:</span>
+                    <span class="plant-info-value">${data[key]}</span>
+                </div>
+            `;
+        })
+        .join('');
+    
+    $('#qrCodeInfo').html(infoHtml);
+}
     </script>
 </body>
 </html>
+});
+});
+
+function downloadQRCode() {
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
+    link.href = document.getElementById('qrcode-image').src;
+    link.click();
+}
+
+function preencherModalInfo(data) {
+    $('#modal-codigo').text(data.codigo_unico);
+    
+    const infoHtml = DISPLAY_ORDER
+        .filter(key => data[key] !== undefined)
+        .map(key => {
+            const icon = ICONS[key] || 'fas fa-info';
+            const label = LABELS[key] || key;
+            return `
+                <div class="plant-info-item">
+                    <i class="${icon}"></i>
+                    <span class="plant-info-label">${label}:</span>
+                    <span class="plant-info-value">${data[key]}</span>
+                </div>
+            `;
+        })
+        .join('');
+    
+    $('#qrCodeInfo').html(infoHtml);
+}
