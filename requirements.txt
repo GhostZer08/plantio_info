@@ -1,0 +1,6 @@
+qrcode==7.4.2
+Pillow==10.0.0
+Flask==3.0.0
+Flask-Bootstrap==3.3.7.1
+reportlab==4.0.8
+gunicorn==21.2.0
