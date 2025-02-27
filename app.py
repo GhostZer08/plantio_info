@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 from flask_bootstrap import Bootstrap
 import qrcode
 from io import BytesIO
@@ -11,9 +11,17 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+import os
+import uuid
+import json
 
 app = Flask(__name__)
 Bootstrap(app)
+
+# Diretório para armazenar os dados dos plantios
+DATA_DIR = 'dados_plantio'
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 def validar_cpf(cpf):
     # Remove caracteres não numéricos
@@ -179,45 +187,52 @@ def validar_documento():
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
     try:
-        print("Iniciando cadastro...")
-        # Coleta os dados do formulário
+        # Obter os dados do formulário
+        tipo_documento = request.form.get('tipo_documento')
+        documento = request.form.get('documento')
+        nome_vegetal = request.form.get('nome_vegetal')
+        data_plantio = request.form.get('data_plantio')
+        tipo_solo = request.form.get('tipo_solo')
+        frequencia_rega = request.form.get('frequencia_rega')
+        exposicao_sol = request.form.get('exposicao_sol')
+        tempo_colheita = request.form.get('tempo_colheita')
+        observacoes = request.form.get('observacoes', '')
+        
+        # Validar o documento
+        if tipo_documento == 'CPF':
+            if not validar_cpf(documento):
+                return jsonify({
+                    'success': False,
+                    'error': 'CPF inválido'
+                })
+        elif tipo_documento == 'CNPJ':
+            if not validar_cnpj(documento):
+                return jsonify({
+                    'success': False,
+                    'error': 'CNPJ inválido'
+                })
+        
+        # Gerar um código único para o plantio
+        codigo_unico = str(uuid.uuid4())[:8]
+        
+        # Criar um dicionário com os dados
         dados = {
-            'tipo_documento': request.form.get('tipo_documento'),
-            'documento': request.form.get('documento'),
-            'nome_vegetal': request.form.get('nome_vegetal'),
-            'data_plantio': request.form.get('data_plantio'),
-            'tipo_solo': request.form.get('tipo_solo'),
-            'frequencia_rega': request.form.get('frequencia_rega'),
-            'exposicao_sol': request.form.get('exposicao_sol'),
-            'tempo_colheita': request.form.get('tempo_colheita'),
-            'observacoes': request.form.get('observacoes', ''),
+            'codigo_unico': codigo_unico,
+            'tipo_documento': tipo_documento,
+            'documento': documento,
+            'nome_vegetal': nome_vegetal,
+            'data_plantio': data_plantio,
+            'tipo_solo': tipo_solo,
+            'frequencia_rega': frequencia_rega,
+            'exposicao_sol': exposicao_sol,
+            'tempo_colheita': tempo_colheita,
+            'observacoes': observacoes,
             'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         }
         
-        # Validar se todos os campos obrigatórios foram preenchidos
-        campos_obrigatorios = ['tipo_documento', 'documento', 'nome_vegetal', 'data_plantio', 
-                             'tipo_solo', 'frequencia_rega', 'exposicao_sol', 'tempo_colheita']
-        
-        for campo in campos_obrigatorios:
-            if not dados[campo]:
-                print(f"Campo obrigatório não preenchido: {campo}")
-                return jsonify({
-                    'success': False,
-                    'error': f'O campo {campo} é obrigatório'
-                })
-        
-        print("Dados coletados:", dados)
-        
-        # Gera o código único
-        try:
-            dados['codigo_unico'] = gerar_codigo_unico(dados['documento'])
-            print("Código único gerado:", dados['codigo_unico'])
-        except Exception as e:
-            print("Erro ao gerar código único:", str(e))
-            return jsonify({
-                'success': False,
-                'error': 'Erro ao gerar código único'
-            })
+        # Salvar os dados em um arquivo JSON
+        with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'w') as f:
+            json.dump(dados, f, ensure_ascii=False)
         
         # Gera o QR Code
         try:
@@ -228,21 +243,8 @@ def cadastrar():
                 border=4,
             )
             
-            # Construir a URL com todos os parâmetros
-            params = {
-                'tipo_documento': dados['tipo_documento'],
-                'documento': dados['documento'],
-                'nome_vegetal': dados['nome_vegetal'],
-                'data_plantio': dados['data_plantio'],
-                'tipo_solo': dados['tipo_solo'],
-                'frequencia_rega': dados['frequencia_rega'],
-                'exposicao_sol': dados['exposicao_sol'],
-                'tempo_colheita': dados['tempo_colheita'],
-                'observacoes': dados['observacoes']
-            }
-            
-            from urllib.parse import urlencode
-            url = f"https://siblam-plantio.onrender.com/plantio/{dados['codigo_unico']}?{urlencode(params)}"
+            # URL simplificada apenas com o código único
+            url = f"https://siblam-plantio.onrender.com/plantio/{codigo_unico}"
             print("URL gerada:", url)
             
             qr.add_data(url)
@@ -280,21 +282,28 @@ def cadastrar():
 @app.route('/plantio/<codigo_unico>')
 def visualizar_plantio(codigo_unico):
     try:
-        # Simular a busca dos dados usando o código único
-        # Em um ambiente real, isso viria do banco de dados
-        dados = {
-            'codigo_unico': codigo_unico,
-            'tipo_documento': request.args.get('tipo_documento', ''),
-            'documento': request.args.get('documento', ''),
-            'nome_vegetal': request.args.get('nome_vegetal', ''),
-            'data_plantio': request.args.get('data_plantio', ''),
-            'tipo_solo': request.args.get('tipo_solo', ''),
-            'frequencia_rega': request.args.get('frequencia_rega', ''),
-            'exposicao_sol': request.args.get('exposicao_sol', ''),
-            'tempo_colheita': request.args.get('tempo_colheita', ''),
-            'observacoes': request.args.get('observacoes', ''),
-            'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        }
+        # Tentar carregar os dados do arquivo
+        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
+        
+        # Se o arquivo existir, carrega os dados dele
+        if os.path.exists(arquivo_json):
+            with open(arquivo_json, 'r') as f:
+                dados = json.load(f)
+        else:
+            # Caso o arquivo não exista, tenta usar os parâmetros da URL (compatibilidade)
+            dados = {
+                'codigo_unico': codigo_unico,
+                'tipo_documento': request.args.get('tipo_documento', ''),
+                'documento': request.args.get('documento', ''),
+                'nome_vegetal': request.args.get('nome_vegetal', ''),
+                'data_plantio': request.args.get('data_plantio', ''),
+                'tipo_solo': request.args.get('tipo_solo', ''),
+                'frequencia_rega': request.args.get('frequencia_rega', ''),
+                'exposicao_sol': request.args.get('exposicao_sol', ''),
+                'tempo_colheita': request.args.get('tempo_colheita', ''),
+                'observacoes': request.args.get('observacoes', ''),
+                'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+            }
         
         # Formatação do documento para exibição
         if dados['tipo_documento'] == 'CPF':
@@ -308,6 +317,7 @@ def visualizar_plantio(codigo_unico):
         
         return render_template('visualizar_plantio.html', info=dados)
     except Exception as e:
+        print("Erro ao visualizar plantio:", str(e))
         return jsonify({
             'success': False,
             'error': str(e)
