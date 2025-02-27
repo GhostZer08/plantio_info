@@ -295,6 +295,17 @@ def visualizar_plantio(codigo_unico):
             'observacoes': request.args.get('observacoes', ''),
             'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         }
+        
+        # Formatação do documento para exibição
+        if dados['tipo_documento'] == 'CPF':
+            cpf = dados['documento']
+            if len(cpf) == 11:
+                dados['documento'] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        elif dados['tipo_documento'] == 'CNPJ':
+            cnpj = dados['documento']
+            if len(cnpj) == 14:
+                dados['documento'] = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        
         return render_template('visualizar_plantio.html', info=dados)
     except Exception as e:
         return jsonify({
