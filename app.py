@@ -242,7 +242,7 @@ def cadastrar():
             }
             
             from urllib.parse import urlencode
-            url = f"https://cadastroqrcodetuxtu.onrender.com/plantio/{dados['codigo_unico']}?{urlencode(params)}"
+            url = f"https://siblam-plantio.onrender.com/plantio/{dados['codigo_unico']}?{urlencode(params)}"
             print("URL gerada:", url)
             
             qr.add_data(url)
