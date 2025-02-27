@@ -244,7 +244,7 @@ def cadastrar():
             )
             
             # URL simplificada apenas com o código único
-            url = f"https://siblam-plantio.onrender.com/plantio/{codigo_unico}"
+            url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
             print("URL gerada:", url)
             
             qr.add_data(url)
