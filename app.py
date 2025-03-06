@@ -133,7 +133,10 @@ def gerar_pdf_plantio(dados):
         'exposicao_sol': 'Exposição ao Sol',
         'tempo_colheita': 'Tempo até Colheita',
         'observacoes': 'Observações',
-        'data_cadastro': 'Data do Cadastro'
+        'data_cadastro': 'Data do Cadastro',
+        'latitude': 'Latitude',
+        'longitude': 'Longitude',
+        'precisao': 'Precisão'
     }
     
     for key, label in labels.items():
@@ -198,6 +201,11 @@ def cadastrar():
         tempo_colheita = request.form.get('tempo_colheita')
         observacoes = request.form.get('observacoes', '')
         
+        # Obter dados de localização
+        latitude = request.form.get('latitude', '')
+        longitude = request.form.get('longitude', '')
+        precisao = request.form.get('precisao', '')
+        
         # Validar o documento
         if tipo_documento == 'CPF':
             if not validar_cpf(documento):
@@ -229,6 +237,12 @@ def cadastrar():
             'observacoes': observacoes,
             'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
         }
+        
+        # Adicionar dados de localização se disponíveis
+        if latitude and longitude:
+            dados['latitude'] = latitude
+            dados['longitude'] = longitude
+            dados['precisao'] = precisao
         
         # Salvar os dados em um arquivo JSON
         with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'w') as f:

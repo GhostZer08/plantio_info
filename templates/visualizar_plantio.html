@@ -87,6 +87,19 @@
                             <div class="info-value">{{ info.observacoes }}</div>
                         </div>
                         {% endif %}
+                        
+                        {% if info.latitude and info.longitude %}
+                        <div class="info-item">
+                            <div class="info-label"><i class="fas fa-map-marker-alt me-2"></i>Localização:</div>
+                            <div class="info-value">
+                                <a href="https://www.google.com/maps?q={{ info.latitude }},{{ info.longitude }}" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-success">
+                                   <i class="fas fa-map-marker-alt me-1"></i> Ver localização
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="text-center">
@@ -98,5 +111,13 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Função para abrir o Google Maps com as coordenadas
+        function abrirGoogleMaps(lat, lng) {
+            console.log('Abrindo Google Maps via JavaScript com coordenadas:', lat, lng);
+            const url = `https://www.google.com/maps?q=${lat},${lng}`;
+            window.open(url, '_blank');
+        }
+    </script>
 </body>
 </html>

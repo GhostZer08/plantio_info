@@ -225,6 +225,16 @@
                     <label for="tipo_documento">Tipo de Documento</label>
                     <div id="tipo-documento-indicator" class="alert alert-info">Digite o número do documento para identificação automática</div>
                     <input type="hidden" name="tipo_documento" id="tipo_documento" value="cpf">
+                    <!-- Campos ocultos para armazenar a localização -->
+                    <input type="hidden" name="latitude" id="latitude">
+                    <input type="hidden" name="longitude" id="longitude">
+                    <input type="hidden" name="precisao" id="precisao">
+                    <button type="button" id="btn-obter-localizacao" class="btn btn-sm btn-primary mb-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>Obter Localização Atual
+                    </button>
+                    <div id="localizacao-feedback" class="alert alert-warning">
+                        <i class="fas fa-map-marker-alt me-2"></i><span id="localizacao-status">Aguardando captura de localização...</span>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -364,6 +374,18 @@ const DISPLAY_ORDER = [
 
 $(document).ready(function(){
     // Configuração inicial
+    
+    // Botão para obter localização
+    $('#btn-obter-localizacao').on('click', function() {
+        obterLocalizacao();
+    });
+    
+    // Tentar obter localização automaticamente ao carregar a página
+    setTimeout(obterLocalizacao, 1000);
+    
+    // Obter localização do usuário
+    obterLocalizacao();
+    
     $('#documento').on('keyup', function() {
         var valor = $(this).val().replace(/\D/g, '');
         console.log("Valor digitado:", valor, "Comprimento:", valor.length);
@@ -522,11 +544,14 @@ $(document).ready(function(){
             $(this).addClass('was-validated');
             return;
         }
-
-        // Coletar dados do formulário
-        const formData = new FormData(this);
         
-        // Enviar para o backend
+        // Tentar obter a localização novamente antes de enviar o formulário
+        if (!$('#latitude').val() || !$('#longitude').val()) {
+            obterLocalizacao();
+        }
+        
+        var formData = new FormData(this);
+        
         $.ajax({
             url: '/cadastrar',
             type: 'POST',
@@ -543,7 +568,8 @@ $(document).ready(function(){
                     
                     // Exibir informações do plantio
                     const infoHtml = Object.entries(response.info)
-                        .filter(([key]) => key !== 'success' && key !== 'qr_code')
+                        .filter(([key]) => key !== 'success' && key !== 'qr_code' && 
+                                          key !== 'latitude' && key !== 'longitude' && key !== 'precisao')
                         .map(([key, value]) => {
                             const icon = ICONS[key] || 'fas fa-info';
                             const label = LABELS[key] || key;
@@ -557,7 +583,27 @@ $(document).ready(function(){
                         })
                         .join('');
                     
-                    $('#info-details').html(infoHtml);
+                    // Adicionar informações de localização se disponíveis
+                    let localizacaoHtml = '';
+                    if (response.info.latitude && response.info.longitude) {
+                        localizacaoHtml = `
+                            <div class="card border-success mt-3 mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-check-circle me-2"></i>Localização Disponível
+                                </div>
+                                <div class="card-body text-success">
+                                    <h5 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Sua localização foi capturada!</h5>
+                                    <p class="card-text">A localização foi registrada junto com os dados do plantio.</p>
+                                    <button type="button" class="btn btn-success btn-sm mt-2" 
+                                            onclick="window.open('https://www.google.com/maps/search/?api=1&query=${response.info.latitude},${response.info.longitude}', '_blank')">
+                                        <i class="fas fa-map me-2"></i>Ver no Google Maps
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    $('#info-details').html(infoHtml + localizacaoHtml);
                     $('#plantio-form').hide();
                     $('#qrcode-container').removeClass('hidden');
                 } else {
@@ -574,6 +620,55 @@ $(document).ready(function(){
     });
 });
 
+// Função para obter a localização do usuário
+function obterLocalizacao() {
+    console.log("Iniciando solicitação de geolocalização...");
+    
+    if (navigator.geolocation) {
+        console.log("Navegador suporta geolocalização, solicitando permissão...");
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // Sucesso - armazena as coordenadas nos campos ocultos
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const acc = position.coords.accuracy;
+                
+                console.log("Localização obtida com sucesso:");
+                console.log("- Latitude: " + lat);
+                console.log("- Longitude: " + lng);
+                console.log("- Precisão: " + acc + " metros");
+                
+                $('#latitude').val(lat);
+                $('#longitude').val(lng);
+                $('#precisao').val(acc);
+                
+                $('#localizacao-feedback').removeClass('alert-warning').addClass('alert-success');
+                $('#localizacao-status').text('Localização capturada com sucesso!');
+            },
+            function(error) {
+                // Erro ao obter localização
+                console.error("Erro ao obter localização. Código: " + error.code);
+                console.error("Mensagem: " + error.message);
+                
+                $('#localizacao-feedback').removeClass('alert-success').addClass('alert-danger');
+                $('#localizacao-status').text('Erro ao capturar localização: ' + error.message);
+            },
+            {
+                enableHighAccuracy: true,  // Solicita a melhor precisão possível
+                timeout: 10000,            // Tempo limite de 10 segundos
+                maximumAge: 0              // Não usar cache
+            }
+        );
+    } else {
+        // Navegador não suporta geolocalização
+        console.error("Este navegador não suporta geolocalização.");
+        
+        $('#localizacao-feedback').removeClass('alert-success').addClass('alert-danger');
+        $('#localizacao-status').text('Geolocalização não suportada pelo navegador');
+    }
+}
+
 function downloadQRCode() {
     const link = document.createElement('a');
     link.download = 'qrcode.png';
@@ -585,7 +680,8 @@ function preencherModalInfo(data) {
     $('#modal-codigo').text(data.codigo_unico);
     
     const infoHtml = DISPLAY_ORDER
-        .filter(key => data[key] !== undefined)
+        .filter(key => data[key] !== undefined && 
+                key !== 'latitude' && key !== 'longitude' && key !== 'precisao')
         .map(key => {
             const icon = ICONS[key] || 'fas fa-info';
             const label = LABELS[key] || key;
