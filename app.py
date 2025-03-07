@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
 from flask_bootstrap import Bootstrap
 import qrcode
 from io import BytesIO
@@ -16,6 +16,7 @@ import uuid
 import json
 
 app = Flask(__name__)
+app.secret_key = 'siblam_plantio_qrcode_secret_key'  # Chave secreta para a sessão
 Bootstrap(app)
 
 # Diretório para armazenar os dados dos plantios
@@ -170,6 +171,10 @@ def gerar_pdf_plantio(dados):
 
 @app.route('/')
 def index():
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+    
     return render_template('index.html')
 
 @app.route('/validar-documento', methods=['POST'])
@@ -190,9 +195,32 @@ def validar_documento():
 @app.route('/cadastrar', methods=['POST'])
 def cadastrar():
     try:
+        # Verificar se o usuário está logado
+        if 'tipo_pessoa' not in session:
+            return jsonify({
+                'success': False,
+                'error': 'Usuário não está logado'
+            }), 401
+        
+        # Obter documento da sessão
+        documento = None
+        tipo_documento = None
+        
+        if session.get('tipo_pessoa') == 'fisica':
+            documento = session.get('cpf')
+            tipo_documento = 'CPF'
+        elif session.get('tipo_pessoa') == 'juridica':
+            documento = session.get('cnpj')
+            tipo_documento = 'CNPJ'
+        
+        # Verificar se o documento está disponível
+        if not documento:
+            return jsonify({
+                'success': False,
+                'error': 'Documento não encontrado na sessão'
+            }), 400
+            
         # Obter os dados do formulário
-        tipo_documento = request.form.get('tipo_documento')
-        documento = request.form.get('documento')
         nome_vegetal = request.form.get('nome_vegetal')
         data_plantio = request.form.get('data_plantio')
         tipo_solo = request.form.get('tipo_solo')
@@ -206,19 +234,8 @@ def cadastrar():
         longitude = request.form.get('longitude', '')
         precisao = request.form.get('precisao', '')
         
-        # Validar o documento
-        if tipo_documento == 'CPF':
-            if not validar_cpf(documento):
-                return jsonify({
-                    'success': False,
-                    'error': 'CPF inválido'
-                })
-        elif tipo_documento == 'CNPJ':
-            if not validar_cnpj(documento):
-                return jsonify({
-                    'success': False,
-                    'error': 'CNPJ inválido'
-                })
+        # Log para debug
+        print(f"Usando documento da sessão: {documento}, Tipo: {tipo_documento}")
         
         # Gerar um código único para o plantio
         codigo_unico = str(uuid.uuid4())[:8]
@@ -294,7 +311,16 @@ def cadastrar():
         })
 
 @app.route('/plantio/<codigo_unico>')
+def plantio_redirect(codigo_unico):
+    # Redirecionar para a rota de visualização
+    return redirect(url_for('visualizar_plantio', codigo_unico=codigo_unico))
+
+@app.route('/visualizar/<codigo_unico>')
 def visualizar_plantio(codigo_unico):
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+        
     try:
         # Tentar carregar os dados do arquivo
         arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
@@ -304,20 +330,8 @@ def visualizar_plantio(codigo_unico):
             with open(arquivo_json, 'r') as f:
                 dados = json.load(f)
         else:
-            # Caso o arquivo não exista, tenta usar os parâmetros da URL (compatibilidade)
-            dados = {
-                'codigo_unico': codigo_unico,
-                'tipo_documento': request.args.get('tipo_documento', ''),
-                'documento': request.args.get('documento', ''),
-                'nome_vegetal': request.args.get('nome_vegetal', ''),
-                'data_plantio': request.args.get('data_plantio', ''),
-                'tipo_solo': request.args.get('tipo_solo', ''),
-                'frequencia_rega': request.args.get('frequencia_rega', ''),
-                'exposicao_sol': request.args.get('exposicao_sol', ''),
-                'tempo_colheita': request.args.get('tempo_colheita', ''),
-                'observacoes': request.args.get('observacoes', ''),
-                'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-            }
+            # Caso o arquivo não exista, retorna erro
+            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
         
         # Formatação do documento para exibição
         if dados['tipo_documento'] == 'CPF':
@@ -332,10 +346,7 @@ def visualizar_plantio(codigo_unico):
         return render_template('visualizar_plantio.html', info=dados)
     except Exception as e:
         print("Erro ao visualizar plantio:", str(e))
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+        return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
 
 @app.route('/gerar-pdf', methods=['POST'])
 def gerar_pdf():
@@ -350,6 +361,140 @@ def gerar_pdf():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/login')
+def login():
+    # Se o usuário já estiver logado, redirecionar para o dashboard
+    if 'tipo_pessoa' in session:
+        return redirect(url_for('dashboard'))
+    
+    return render_template('login.html')
+
+@app.route('/autenticar', methods=['POST'])
+def autenticar():
+    tipo_pessoa = request.form.get('tipo_pessoa')
+    
+    # Limpar a sessão existente
+    session.clear()
+    
+    if tipo_pessoa == 'fisica':
+        cpf = request.form.get('cpf')
+        nome = request.form.get('nome')
+        email = request.form.get('email')
+        telefone = request.form.get('telefone')
+        
+        # Validar CPF
+        cpf_limpo = re.sub(r'[^0-9]', '', cpf)
+        if not validar_cpf(cpf_limpo):
+            return "CPF inválido", 400
+        
+        # Armazenar dados na sessão
+        session['tipo_pessoa'] = 'fisica'
+        session['cpf'] = cpf
+        session['nome'] = nome
+        session['email'] = email
+        session['telefone'] = telefone
+        session['logged_in'] = True
+        session['documento'] = cpf
+        session['tipo_documento'] = 'CPF'
+        
+    elif tipo_pessoa == 'juridica':
+        cnpj = request.form.get('cnpj')
+        razao_social = request.form.get('razao_social')
+        nome_fantasia = request.form.get('nome_fantasia')
+        email = request.form.get('email')
+        telefone = request.form.get('telefone')
+        
+        # Validar CNPJ
+        cnpj_limpo = re.sub(r'[^0-9]', '', cnpj)
+        if not validar_cnpj(cnpj_limpo):
+            return "CNPJ inválido", 400
+        
+        # Armazenar dados na sessão
+        session['tipo_pessoa'] = 'juridica'
+        session['cnpj'] = cnpj
+        session['razao_social'] = razao_social
+        session['nome_fantasia'] = nome_fantasia
+        session['email'] = email
+        session['telefone'] = telefone
+        session['logged_in'] = True
+        session['documento'] = cnpj
+        session['tipo_documento'] = 'CNPJ'
+    
+    else:
+        return "Tipo de pessoa inválido", 400
+    
+    # Calcular estatísticas para o dashboard
+    calcular_estatisticas()
+    
+    return redirect(url_for('dashboard'))
+
+def calcular_estatisticas():
+    """Calcula estatísticas para exibir no dashboard"""
+    plantios = []
+    especies = set()
+    ultimo_plantio = None
+    
+    # Verificar se o diretório existe
+    if os.path.exists(DATA_DIR):
+        for arquivo in os.listdir(DATA_DIR):
+            if arquivo.endswith('.json'):
+                with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
+                    dados = json.load(f)
+                    plantios.append(dados)
+                    
+                    if 'especie' in dados:
+                        especies.add(dados['especie'])
+                    
+                    # Verificar se é o plantio mais recente
+                    if 'data_plantio' in dados:
+                        data_plantio = dados['data_plantio']
+                        if ultimo_plantio is None or data_plantio > ultimo_plantio:
+                            ultimo_plantio = data_plantio
+    
+    # Armazenar estatísticas na sessão
+    session['total_plantios'] = len(plantios)
+    session['total_especies'] = len(especies)
+    session['ultimo_plantio'] = ultimo_plantio if ultimo_plantio else "Nenhum"
+
+@app.route('/dashboard')
+def dashboard():
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template('dashboard.html')
+
+@app.route('/listar-plantios')
+def listar_plantios():
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+    
+    # Carregar os dados dos plantios
+    plantios = []
+    if os.path.exists(DATA_DIR):
+        for arquivo in os.listdir(DATA_DIR):
+            if arquivo.endswith('.json'):
+                with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
+                    dados = json.load(f)
+                    plantios.append(dados)
+    
+    return render_template('listar_plantios.html', plantios=plantios)
+
+@app.route('/escanear')
+def escanear():
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+    
+    return render_template('escanear.html')
+
+@app.route('/logout')
+def logout():
+    # Limpar todos os dados da sessão
+    session.clear()
+    return redirect(url_for('login'))
+
 @app.errorhandler(500)
 def internal_error(error):
     app.logger.error(f'Server Error: {error}')
@@ -362,4 +507,4 @@ def not_found_error(error):
 if __name__ == '__main__':
     import os
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
