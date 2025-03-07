@@ -311,12 +311,58 @@ def cadastrar():
         })
 
 @app.route('/plantio/<codigo_unico>')
-def plantio_redirect(codigo_unico):
-    # Redirecionar para a rota de visualização
-    return redirect(url_for('visualizar_plantio', codigo_unico=codigo_unico))
+def visualizar_plantio(codigo_unico):
+    try:
+        # Tentar carregar os dados do arquivo
+        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
+        
+        # Se o arquivo existir, carrega os dados dele
+        if os.path.exists(arquivo_json):
+            with open(arquivo_json, 'r') as f:
+                dados = json.load(f)
+        else:
+            # Caso o arquivo não exista, retorna erro
+            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
+        
+        # Formatação do documento para exibição
+        if dados['tipo_documento'] == 'CPF':
+            cpf = dados['documento']
+            if len(cpf) == 11:
+                dados['documento'] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
+        elif dados['tipo_documento'] == 'CNPJ':
+            cnpj = dados['documento']
+            if len(cnpj) == 14:
+                dados['documento'] = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        
+        # Gerar QR Code para a visualização
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        
+        # URL para o plantio
+        url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
+        
+        qr.add_data(url)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Converte a imagem para base64
+        buffered = BytesIO()
+        img.save(buffered)
+        qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
+        
+        # Usar o template público para exibir as informações do plantio
+        return render_template('plantio_publico.html', info=dados, qr_code=qr_code_base64)
+    except Exception as e:
+        print("Erro ao visualizar plantio:", str(e))
+        return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
 
 @app.route('/visualizar/<codigo_unico>')
-def visualizar_plantio(codigo_unico):
+def visualizar_plantio_logado(codigo_unico):
     # Verificar se o usuário está logado
     if 'tipo_pessoa' not in session:
         return redirect(url_for('login'))
