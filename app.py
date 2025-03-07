@@ -343,7 +343,28 @@ def visualizar_plantio(codigo_unico):
             if len(cnpj) == 14:
                 dados['documento'] = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
         
-        return render_template('visualizar_plantio.html', info=dados)
+        # Gerar QR Code para a visualização
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        
+        # URL para o plantio
+        url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
+        
+        qr.add_data(url)
+        qr.make(fit=True)
+        
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Converte a imagem para base64
+        buffered = BytesIO()
+        img.save(buffered)
+        qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
+        
+        return render_template('visualizar_plantio.html', info=dados, qr_code=qr_code_base64)
     except Exception as e:
         print("Erro ao visualizar plantio:", str(e))
         return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
