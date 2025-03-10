@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizar Plantio - SIBLAM</title>
+    <title>Visualizar Plantio - SIPLAN</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -53,50 +53,125 @@
                         <h4 class="mb-0"><i class="fas fa-leaf me-2"></i>Informações do Plantio</h4>
                     </div>
                     <div class="card-body">
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-hashtag me-2"></i>Código Único:</div>
-                            <div class="info-value">{{ info.codigo_unico }}</div>
+                        <div class="row">
+                            <!-- Informações do Cadastro -->
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header bg-warning text-dark">
+                                        <h5 class="mb-0"><i class="fas fa-user-edit me-2"></i>Dados do Cadastro</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if dados.nome_pessoa %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-user me-2"></i>Nome:</span>
+                                            <span>{{ dados.nome_pessoa }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.cpf_pessoa %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-id-card me-2"></i>CPF:</span>
+                                            <span>{{ dados.cpf_pessoa }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.estado or dados.municipio %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-map-marker-alt me-2"></i>Localidade:</span>
+                                            <span>
+                                                {% if dados.municipio %}{{ dados.municipio }}{% endif %}
+                                                {% if dados.estado and dados.municipio %} - {% endif %}
+                                                {% if dados.estado %}{{ dados.estado }}{% endif %}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.distrito %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-map-signs me-2"></i>Distrito:</span>
+                                            <span>{{ dados.distrito }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.comunidade_rio %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-water me-2"></i>Comunidade/Rio:</span>
+                                            <span>{{ dados.comunidade_rio }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.nome_propriedade %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-home me-2"></i>Propriedade:</span>
+                                            <span>{{ dados.nome_propriedade }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.numero_propriedade %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-hashtag me-2"></i>Nº Propriedade:</span>
+                                            <span>{{ dados.numero_propriedade }}</span>
+                                        </div>
+                                        {% endif %}
+                                        
+                                        {% if dados.numero_caf %}
+                                        <div class="mb-2">
+                                            <span class="fw-bold"><i class="fas fa-file-contract me-2"></i>Nº CAF:</span>
+                                            <span>{{ dados.numero_caf }}</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Informações do Plantio -->
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-hashtag me-2"></i>Código Único:</div>
+                                    <div class="info-value">{{ dados.codigo_unico }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-calendar me-2"></i>Data do Cadastro:</div>
+                                    <div class="info-value">{{ dados.data_cadastro }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-seedling me-2"></i>Nome do Vegetal:</div>
+                                    <div class="info-value">{{ dados.nome_vegetal }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-calendar-alt me-2"></i>Data do Plantio:</div>
+                                    <div class="info-value">{{ dados.data_plantio }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-id-card me-2"></i>Documento:</div>
+                                    <div class="info-value">{{ dados.documento }} ({{ dados.tipo_documento }})</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-mountain me-2"></i>Tipo de Solo:</div>
+                                    <div class="info-value">{{ dados.tipo_solo }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-tint me-2"></i>Frequência de Rega:</div>
+                                    <div class="info-value">{{ dados.frequencia_rega }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-sun me-2"></i>Exposição ao Sol:</div>
+                                    <div class="info-value">{{ dados.exposicao_sol }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-clock me-2"></i>Tempo até Colheita:</div>
+                                    <div class="info-value">{{ dados.tempo_colheita }}</div>
+                                </div>
+                                {% if dados.observacoes %}
+                                <div class="info-item">
+                                    <div class="info-label"><i class="fas fa-comment me-2"></i>Observações:</div>
+                                    <div class="info-value">{{ dados.observacoes }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-calendar me-2"></i>Data do Cadastro:</div>
-                            <div class="info-value">{{ info.data_cadastro }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-seedling me-2"></i>Nome do Vegetal:</div>
-                            <div class="info-value">{{ info.nome_vegetal }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-calendar-alt me-2"></i>Data do Plantio:</div>
-                            <div class="info-value">{{ info.data_plantio }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-id-card me-2"></i>Documento:</div>
-                            <div class="info-value">{{ info.documento }} ({{ info.tipo_documento }})</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-mountain me-2"></i>Tipo de Solo:</div>
-                            <div class="info-value">{{ info.tipo_solo }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-tint me-2"></i>Frequência de Rega:</div>
-                            <div class="info-value">{{ info.frequencia_rega }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-sun me-2"></i>Exposição ao Sol:</div>
-                            <div class="info-value">{{ info.exposicao_sol }}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-clock me-2"></i>Tempo até Colheita:</div>
-                            <div class="info-value">{{ info.tempo_colheita }}</div>
-                        </div>
-                        {% if info.observacoes %}
-                        <div class="info-item">
-                            <div class="info-label"><i class="fas fa-comment me-2"></i>Observações:</div>
-                            <div class="info-value">{{ info.observacoes }}</div>
-                        </div>
-                        {% endif %}
                         
-                        {% if info.latitude and info.longitude %}
+                        {% if dados.latitude and dados.longitude %}
                         <div class="card border-success mt-3 mb-3">
                             <div class="card-header bg-success text-white">
                                 <i class="fas fa-check-circle me-2"></i>Localização Disponível
@@ -105,7 +180,7 @@
                                 <h5 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Localização registrada!</h5>
                                 <p class="card-text">A localização foi capturada durante o cadastro do plantio.</p>
                                 <button type="button" class="btn btn-success mt-2" 
-                                        onclick="window.open('https://www.google.com/maps/search/?api=1&query={{ info.latitude }},{{ info.longitude }}', '_blank')">
+                                        onclick="window.open('https://www.google.com/maps/search/?api=1&query={{ dados.latitude }},{{ dados.longitude }}', '_blank')">
                                     <i class="fas fa-map me-2"></i>Ver no Google Maps
                                 </button>
                             </div>
@@ -124,9 +199,41 @@
                                 <p class="card-text">Escaneie este QR code para acessar as informações deste plantio.</p>
                             </div>
                         </div>
+                        
+                        <!-- Histórico de Status -->
+                        {% if dados.status_historico %}
+                        <div class="card mt-3 mb-3">
+                            <div class="card-header bg-info text-white">
+                                <i class="fas fa-history me-2"></i>Histórico de Status
+                            </div>
+                            <div class="card-body">
+                                {% for status in dados.status_historico %}
+                                <div class="alert alert-light border mb-3">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="mb-1"><strong><i class="fas fa-comment me-2"></i>Comentário:</strong> {{ status.comentario }}</p>
+                                            <p class="mb-1 text-muted"><small><i class="fas fa-calendar me-2"></i>Data/Hora: {{ status.data_hora }}</small></p>
+                                            {% if status.latitude and status.longitude %}
+                                            <p class="mb-0">
+                                                <a href="https://www.google.com/maps/search/?api=1&query={{ status.latitude }},{{ status.longitude }}" 
+                                                   target="_blank" class="btn btn-sm btn-outline-info mt-1">
+                                                    <i class="fas fa-map-marker-alt me-1"></i>Ver Localização
+                                                </a>
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 <div class="text-center mt-4">
+                    <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#statusModal">
+                        <i class="fas fa-edit me-2"></i>Alterar Status
+                    </button>
                     <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-voltar">
                         <i class="fas fa-arrow-left me-2"></i>Voltar para o Dashboard
                     </a>
@@ -134,6 +241,43 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal para adicionar status -->
+    <div class="modal fade" id="statusModal" tabindex="-1" aria-labelledby="statusModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="statusModalLabel"><i class="fas fa-edit me-2"></i>Alterar Status do Plantio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="statusForm" action="{{ url_for('adicionar_status', codigo_unico=dados.codigo_unico) }}" method="POST">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="comentario" class="form-label"><i class="fas fa-comment me-2"></i>Comentário:</label>
+                            <textarea class="form-control" id="comentario" name="comentario" rows="4" required></textarea>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="capturarLocalizacao" name="capturarLocalizacao" checked>
+                            <label class="form-check-label" for="capturarLocalizacao">
+                                <i class="fas fa-map-marker-alt me-2"></i>Capturar localização atual
+                            </label>
+                        </div>
+                        <input type="hidden" id="latitude" name="latitude">
+                        <input type="hidden" id="longitude" name="longitude">
+                        <input type="hidden" id="precisao" name="precisao">
+                        <div id="localizacaoStatus" class="alert alert-info d-none">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Obtendo localização...
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success" id="btnSalvar">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Função para abrir o Google Maps com as coordenadas
@@ -142,6 +286,69 @@
             const url = `https://www.google.com/maps?q=${lat},${lng}`;
             window.open(url, '_blank');
         }
+        
+        // Captura de localização para o status
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxLocalizacao = document.getElementById('capturarLocalizacao');
+            const statusForm = document.getElementById('statusForm');
+            const localizacaoStatus = document.getElementById('localizacaoStatus');
+            
+            // Função para obter a localização
+            function obterLocalizacao() {
+                if (checkboxLocalizacao.checked) {
+                    localizacaoStatus.classList.remove('d-none');
+                    
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            function(position) {
+                                document.getElementById('latitude').value = position.coords.latitude;
+                                document.getElementById('longitude').value = position.coords.longitude;
+                                document.getElementById('precisao').value = position.coords.accuracy;
+                                
+                                localizacaoStatus.innerHTML = '<i class="fas fa-check-circle me-2"></i>Localização capturada com sucesso!';
+                                localizacaoStatus.classList.remove('alert-info');
+                                localizacaoStatus.classList.add('alert-success');
+                            },
+                            function(error) {
+                                console.error('Erro ao obter localização:', error);
+                                localizacaoStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Não foi possível obter a localização.';
+                                localizacaoStatus.classList.remove('alert-info');
+                                localizacaoStatus.classList.add('alert-danger');
+                            }
+                        );
+                    } else {
+                        localizacaoStatus.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Geolocalização não é suportada neste navegador.';
+                        localizacaoStatus.classList.remove('alert-info');
+                        localizacaoStatus.classList.add('alert-danger');
+                    }
+                } else {
+                    document.getElementById('latitude').value = '';
+                    document.getElementById('longitude').value = '';
+                    document.getElementById('precisao').value = '';
+                    localizacaoStatus.classList.add('d-none');
+                }
+            }
+            
+            // Iniciar captura quando o modal for aberto
+            const statusModal = document.getElementById('statusModal');
+            statusModal.addEventListener('shown.bs.modal', function() {
+                if (checkboxLocalizacao.checked) {
+                    obterLocalizacao();
+                }
+            });
+            
+            // Atualizar quando o checkbox for alterado
+            checkboxLocalizacao.addEventListener('change', obterLocalizacao);
+            
+            // Validar o formulário antes de enviar
+            statusForm.addEventListener('submit', function(event) {
+                const comentario = document.getElementById('comentario').value.trim();
+                if (!comentario) {
+                    event.preventDefault();
+                    alert('Por favor, adicione um comentário.');
+                }
+            });
+        });
     </script>
 </body>
 </html>

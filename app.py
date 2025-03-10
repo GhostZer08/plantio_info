@@ -16,7 +16,7 @@ import uuid
 import json
 
 app = Flask(__name__)
-app.secret_key = 'siblam_plantio_qrcode_secret_key'  # Chave secreta para a sessão
+app.secret_key = 'siplan_plantio_qrcode_secret_key'  # Chave secreta para a sessão
 Bootstrap(app)
 
 # Diretório para armazenar os dados dos plantios
@@ -99,72 +99,113 @@ def gerar_pdf_plantio(dados):
     # Estilos
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
-        'CustomTitle',
+        name='TitleStyle',
         parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=1  # Centralizado
+        alignment=1,  # Centralizado
+        spaceAfter=12,
+        textColor=colors.darkgreen
     )
+    subtitle_style = ParagraphStyle(
+        name='SubtitleStyle',
+        parent=styles['Heading2'],
+        spaceAfter=6,
+        textColor=colors.darkgreen
+    )
+    normal_style = styles['Normal']
     
     # Título
-    elements.append(Paragraph("Informações do Plantio", title_style))
-    elements.append(Spacer(1, 12))
+    elements.append(Paragraph("SIPLAN Plantio QR Code", title_style))
+    elements.append(Spacer(1, 0.25*inch))
     
-    # Adiciona o código único em destaque
-    codigo_style = ParagraphStyle(
-        'CodigoStyle',
-        parent=styles['Normal'],
-        fontSize=16,
-        textColor=colors.HexColor('#28a745'),
-        spaceAfter=20,
-        alignment=1
-    )
-    elements.append(Paragraph(f"Código: {dados['codigo_unico']}", codigo_style))
-    elements.append(Spacer(1, 12))
+    # Informações do Plantio
+    elements.append(Paragraph("Informações do Plantio", subtitle_style))
     
-    # Prepara os dados para a tabela
-    table_data = []
-    labels = {
-        'tipo_documento': 'Tipo de Documento',
-        'documento': 'Documento',
-        'nome_vegetal': 'Nome do Vegetal',
-        'data_plantio': 'Data do Plantio',
-        'tipo_solo': 'Tipo de Solo',
-        'frequencia_rega': 'Frequência de Rega',
-        'exposicao_sol': 'Exposição ao Sol',
-        'tempo_colheita': 'Tempo até Colheita',
-        'observacoes': 'Observações',
-        'data_cadastro': 'Data do Cadastro',
-        'latitude': 'Latitude',
-        'longitude': 'Longitude',
-        'precisao': 'Precisão'
-    }
+    # Dados do cadastro
+    data_cadastro = [
+        ["Código Único:", dados.get('codigo_unico', '')],
+        ["Data do Cadastro:", dados.get('data_cadastro', '')]
+    ]
     
-    for key, label in labels.items():
-        if key in dados:
-            table_data.append([Paragraph(label, styles['Normal']), 
-                             Paragraph(str(dados[key]), styles['Normal'])])
+    # Adicionar dados da pessoa física
+    if dados.get('nome_pessoa'):
+        data_cadastro.append(["Nome da Pessoa:", dados.get('nome_pessoa', '')])
     
-    # Cria a tabela
-    table = Table(table_data, colWidths=[2.5*inch, 4*inch])
+    if dados.get('cpf_pessoa'):
+        data_cadastro.append(["CPF:", dados.get('cpf_pessoa', '')])
+    
+    if dados.get('estado') or dados.get('municipio'):
+        localidade = ""
+        if dados.get('municipio'):
+            localidade += dados.get('municipio', '')
+        if dados.get('estado') and dados.get('municipio'):
+            localidade += " - "
+        if dados.get('estado'):
+            localidade += dados.get('estado', '')
+        data_cadastro.append(["Localidade:", localidade])
+    
+    if dados.get('distrito'):
+        data_cadastro.append(["Distrito:", dados.get('distrito', '')])
+    
+    if dados.get('comunidade_rio'):
+        data_cadastro.append(["Comunidade/Rio:", dados.get('comunidade_rio', '')])
+    
+    if dados.get('nome_propriedade'):
+        data_cadastro.append(["Nome da Propriedade:", dados.get('nome_propriedade', '')])
+    
+    if dados.get('numero_propriedade'):
+        data_cadastro.append(["Número da Propriedade:", dados.get('numero_propriedade', '')])
+    
+    if dados.get('numero_caf'):
+        data_cadastro.append(["Número do CAF:", dados.get('numero_caf', '')])
+    
+    # Dados do plantio
+    data_cadastro.extend([
+        ["Nome do Vegetal:", dados.get('nome_vegetal', '')],
+        ["Data do Plantio:", dados.get('data_plantio', '')],
+        ["Tipo de Solo:", dados.get('tipo_solo', '')],
+        ["Frequência de Rega:", dados.get('frequencia_rega', '')],
+        ["Exposição ao Sol:", dados.get('exposicao_sol', '')],
+        ["Tempo até Colheita:", dados.get('tempo_colheita', '')],
+    ])
+    
+    if dados.get('observacoes'):
+        data_cadastro.append(["Observações:", dados.get('observacoes', '')])
+    
+    # Adicionar localização se disponível
+    if dados.get('latitude') and dados.get('longitude'):
+        data_cadastro.append(["Localização:", f"Disponível (Ver no Google Maps)"])
+    
+    # Criar tabela com os dados
+    table = Table(data_cadastro, colWidths=[2*inch, 4*inch])
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.white),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 12),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('BOX', (0, 0), (-1, -1), 2, colors.black),
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgreen),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.darkgreen),
+        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (0, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('BACKGROUND', (1, 0), (1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
     ]))
     
     elements.append(table)
+    elements.append(Spacer(1, 0.5*inch))
     
-    # Gera o PDF
+    # Adicionar QR Code
+    elements.append(Paragraph("Escaneie o QR Code para acessar as informações do plantio:", normal_style))
+    
+    # Construir o documento
     doc.build(elements)
     
-    # Retorna o PDF em base64
+    # Retornar o buffer
+    buffer.seek(0)
+    return buffer
+
+def gerar_pdf_base64(dados):
+    # Gera o PDF usando a função gerar_pdf_plantio
+    buffer = gerar_pdf_plantio(dados)
+    
+    # Converte para base64
     pdf_bytes = buffer.getvalue()
     buffer.close()
     return base64.b64encode(pdf_bytes).decode()
@@ -192,147 +233,149 @@ def validar_documento():
     
     return jsonify({'valido': valido})
 
-@app.route('/cadastrar', methods=['POST'])
+@app.route('/cadastrar', methods=['GET', 'POST'])
 def cadastrar():
-    try:
-        # Verificar se o usuário está logado
-        if 'tipo_pessoa' not in session:
-            return jsonify({
-                'success': False,
-                'error': 'Usuário não está logado'
-            }), 401
-        
-        # Obter documento da sessão
-        documento = None
-        tipo_documento = None
-        
-        if session.get('tipo_pessoa') == 'fisica':
-            documento = session.get('cpf')
-            tipo_documento = 'CPF'
-        elif session.get('tipo_pessoa') == 'juridica':
-            documento = session.get('cnpj')
-            tipo_documento = 'CNPJ'
-        
-        # Verificar se o documento está disponível
-        if not documento:
-            return jsonify({
-                'success': False,
-                'error': 'Documento não encontrado na sessão'
-            }), 400
-            
-        # Obter os dados do formulário
-        nome_vegetal = request.form.get('nome_vegetal')
-        data_plantio = request.form.get('data_plantio')
-        tipo_solo = request.form.get('tipo_solo')
-        frequencia_rega = request.form.get('frequencia_rega')
-        exposicao_sol = request.form.get('exposicao_sol')
-        tempo_colheita = request.form.get('tempo_colheita')
-        observacoes = request.form.get('observacoes', '')
-        
-        # Obter dados de localização
-        latitude = request.form.get('latitude', '')
-        longitude = request.form.get('longitude', '')
-        precisao = request.form.get('precisao', '')
-        
-        # Log para debug
-        print(f"Usando documento da sessão: {documento}, Tipo: {tipo_documento}")
-        
-        # Gerar um código único para o plantio
-        codigo_unico = str(uuid.uuid4())[:8]
-        
-        # Criar um dicionário com os dados
-        dados = {
-            'codigo_unico': codigo_unico,
-            'tipo_documento': tipo_documento,
-            'documento': documento,
-            'nome_vegetal': nome_vegetal,
-            'data_plantio': data_plantio,
-            'tipo_solo': tipo_solo,
-            'frequencia_rega': frequencia_rega,
-            'exposicao_sol': exposicao_sol,
-            'tempo_colheita': tempo_colheita,
-            'observacoes': observacoes,
-            'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        }
-        
-        # Adicionar dados de localização se disponíveis
-        if latitude and longitude:
-            dados['latitude'] = latitude
-            dados['longitude'] = longitude
-            dados['precisao'] = precisao
-        
-        # Salvar os dados em um arquivo JSON
-        with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'w') as f:
-            json.dump(dados, f, ensure_ascii=False)
-        
-        # Gera o QR Code
+    # Verificar se o usuário está logado
+    if 'logged_in' not in session:
+        return redirect(url_for('login'))
+    
+    if request.method == 'POST':
         try:
-            qr = qrcode.QRCode(
-                version=1,
-                error_correction=qrcode.constants.ERROR_CORRECT_L,
-                box_size=10,
-                border=4,
-            )
+            # Obter dados do formulário
+            nome_vegetal = request.form.get('nome_vegetal')
+            data_plantio = request.form.get('data_plantio')
+            tipo_solo = request.form.get('tipo_solo')
             
-            # URL simplificada apenas com o código único
-            url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
-            print("URL gerada:", url)
+            # Obter dados da pessoa da sessão
+            nome_pessoa = session.get('nome', '')
+            cpf_pessoa = session.get('cpf', '')
             
-            qr.add_data(url)
-            qr.make(fit=True)
+            # Validar CPF
+            if not cpf_pessoa:
+                return "Usuário não autenticado. Faça login primeiro.", 400
             
-            img = qr.make_image(fill_color="black", back_color="white")
+            # Gerar código único
+            codigo_unico = str(uuid.uuid4())
             
-            # Converte a imagem para base64
-            buffered = BytesIO()
-            img.save(buffered)
-            img_str = base64.b64encode(buffered.getvalue()).decode()
+            # Obter data atual
+            data_cadastro = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             
-            print("QR Code gerado com sucesso")
+            # Obter coordenadas de localização
+            latitude = request.form.get('latitude', '')
+            longitude = request.form.get('longitude', '')
+            precisao = request.form.get('precisao', '')
             
-            return jsonify({
-                'success': True,
-                'qr_code': img_str,
-                'info': dados
-            })
+            # Criar dicionário de dados
+            dados = {
+                'codigo_unico': codigo_unico,
+                'nome_vegetal': nome_vegetal,
+                'data_plantio': data_plantio,
+                'tipo_solo': tipo_solo,
+                'nome_pessoa': nome_pessoa,
+                'cpf_pessoa': cpf_pessoa,
+                'data_cadastro': data_cadastro,
+                'latitude': latitude,
+                'longitude': longitude,
+                'precisao': precisao
+            }
             
+            # Salvar os dados em um arquivo JSON
+            with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'w') as f:
+                json.dump(dados, f, ensure_ascii=False)
+            
+            # Gera o QR Code
+            try:
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=10,
+                    border=4,
+                )
+                
+                # URL simplificada apenas com o código único
+                url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
+                print("URL gerada:", url)
+                
+                qr.add_data(url)
+                qr.make(fit=True)
+                
+                img = qr.make_image(fill_color="black", back_color="white")
+                
+                # Converte a imagem para base64
+                buffered = BytesIO()
+                img.save(buffered)
+                img_str = base64.b64encode(buffered.getvalue()).decode()
+                
+                print("QR Code gerado com sucesso")
+                
+                return jsonify({
+                    'success': True,
+                    'qr_code': img_str,
+                    'info': dados
+                })
+                
+            except Exception as e:
+                print("Erro ao gerar QR code:", str(e))
+                return jsonify({
+                    'success': False,
+                    'error': 'Erro ao gerar QR code'
+                })
+                
         except Exception as e:
-            print("Erro ao gerar QR code:", str(e))
+            print("Erro durante o cadastro:", str(e))
             return jsonify({
                 'success': False,
-                'error': 'Erro ao gerar QR code'
+                'error': str(e)
             })
             
-    except Exception as e:
-        print("Erro durante o cadastro:", str(e))
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
+    # Para GET, preparar o formulário
+    documento = session.get('documento', '')
+    tipo_documento = session.get('tipo_documento', '')
+    
+    # Obter os dados da pessoa física da sessão para pré-preencher o formulário
+    nome_pessoa = session.get('nome', '')
+    cpf_pessoa = session.get('cpf', '')
+    estado = session.get('estado', '')
+    municipio = session.get('municipio', '')
+    distrito = session.get('distrito', '')
+    comunidade_rio = session.get('comunidade_rio', '')
+    nome_propriedade = session.get('nome_propriedade', '')
+    numero_propriedade = session.get('numero_propriedade', '')
+    numero_caf = session.get('numero_caf', '')
+    
+    return render_template('index.html', 
+                          documento=documento, 
+                          tipo_documento=tipo_documento,
+                          nome_pessoa=nome_pessoa,
+                          cpf_pessoa=cpf_pessoa,
+                          estado=estado,
+                          municipio=municipio,
+                          distrito=distrito,
+                          comunidade_rio=comunidade_rio,
+                          nome_propriedade=nome_propriedade,
+                          numero_propriedade=numero_propriedade,
+                          numero_caf=numero_caf)
 
 @app.route('/plantio/<codigo_unico>')
 def visualizar_plantio(codigo_unico):
     try:
-        # Tentar carregar os dados do arquivo
-        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
+        # Carregar dados do plantio
+        with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'r') as f:
+            dados = json.load(f)
         
-        # Se o arquivo existir, carrega os dados dele
-        if os.path.exists(arquivo_json):
-            with open(arquivo_json, 'r') as f:
-                dados = json.load(f)
+        # Formatar data de cadastro
+        if 'data_cadastro' in dados:
+            data_cadastro = dados['data_cadastro']
         else:
-            # Caso o arquivo não exista, retorna erro
-            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
+            data_cadastro = "Não disponível"
         
-        # Formatação do documento para exibição
-        if dados['tipo_documento'] == 'CPF':
-            cpf = dados['documento']
-            if len(cpf) == 11:
-                dados['documento'] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
-        elif dados['tipo_documento'] == 'CNPJ':
-            cnpj = dados['documento']
-            if len(cnpj) == 14:
-                dados['documento'] = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        # Verificar se há dados de localização
+        tem_localizacao = 'latitude' in dados and 'longitude' in dados and dados['latitude'] and dados['longitude']
+        
+        # Preparar link do Google Maps
+        google_maps_link = ""
+        if tem_localizacao:
+            google_maps_link = f"https://www.google.com/maps?q={dados['latitude']},{dados['longitude']}"
         
         # Gerar QR Code para a visualização
         qr = qrcode.QRCode(
@@ -343,7 +386,7 @@ def visualizar_plantio(codigo_unico):
         )
         
         # URL para o plantio
-        url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
+        url = f"{request.host_url}plantio/{codigo_unico}"
         
         qr.add_data(url)
         qr.make(fit=True)
@@ -355,11 +398,14 @@ def visualizar_plantio(codigo_unico):
         img.save(buffered)
         qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
         
-        # Usar o template público para exibir as informações do plantio
-        return render_template('plantio_publico.html', info=dados, qr_code=qr_code_base64)
-    except Exception as e:
-        print("Erro ao visualizar plantio:", str(e))
-        return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
+        return render_template('plantio_publico.html', 
+                              info=dados, 
+                              data_cadastro=data_cadastro,
+                              tem_localizacao=tem_localizacao,
+                              google_maps_link=google_maps_link,
+                              qr_code=qr_code_base64)
+    except FileNotFoundError:
+        return "Plantio não encontrado", 404
 
 @app.route('/visualizar/<codigo_unico>')
 def visualizar_plantio_logado(codigo_unico):
@@ -379,41 +425,82 @@ def visualizar_plantio_logado(codigo_unico):
             # Caso o arquivo não exista, retorna erro
             return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
         
-        # Formatação do documento para exibição
-        if dados['tipo_documento'] == 'CPF':
-            cpf = dados['documento']
-            if len(cpf) == 11:
-                dados['documento'] = f"{cpf[:3]}.{cpf[3:6]}.{cpf[6:9]}-{cpf[9:]}"
-        elif dados['tipo_documento'] == 'CNPJ':
-            cnpj = dados['documento']
-            if len(cnpj) == 14:
-                dados['documento'] = f"{cnpj[:2]}.{cnpj[2:5]}.{cnpj[5:8]}/{cnpj[8:12]}-{cnpj[12:]}"
+        # Verificar se há dados de localização
+        tem_localizacao = 'latitude' in dados and 'longitude' in dados and dados['latitude'] and dados['longitude']
         
-        # Gerar QR Code para a visualização
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
+        # Preparar link do Google Maps
+        google_maps_link = ""
+        if tem_localizacao:
+            google_maps_link = f"https://www.google.com/maps?q={dados['latitude']},{dados['longitude']}"
         
-        # URL para o plantio
-        url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
+        # Formatar data de cadastro
+        if 'data_cadastro' in dados:
+            data_cadastro = dados['data_cadastro']
+        else:
+            data_cadastro = "Não disponível"
         
-        qr.add_data(url)
-        qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Converte a imagem para base64
-        buffered = BytesIO()
-        img.save(buffered)
-        qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
-        return render_template('visualizar_plantio.html', info=dados, qr_code=qr_code_base64)
+        return render_template('visualizar_plantio.html', 
+                              dados=dados, 
+                              data_cadastro=data_cadastro,
+                              tem_localizacao=tem_localizacao,
+                              google_maps_link=google_maps_link)
     except Exception as e:
         print("Erro ao visualizar plantio:", str(e))
         return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
+
+@app.route('/adicionar-status/<codigo_unico>', methods=['POST'])
+def adicionar_status(codigo_unico):
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+        
+    try:
+        # Obter os dados do formulário
+        comentario = request.form.get('comentario')
+        latitude = request.form.get('latitude')
+        longitude = request.form.get('longitude')
+        precisao = request.form.get('precisao')
+        
+        # Obter a data e hora atual
+        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        
+        # Carregar os dados do arquivo
+        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
+        
+        if not os.path.exists(arquivo_json):
+            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
+            
+        with open(arquivo_json, 'r') as f:
+            dados = json.load(f)
+        
+        # Criar o objeto de status
+        status = {
+            "comentario": comentario,
+            "data_hora": data_hora,
+        }
+        
+        # Adicionar localização se disponível
+        if latitude and longitude:
+            status["latitude"] = latitude
+            status["longitude"] = longitude
+            status["precisao"] = precisao
+        
+        # Adicionar o status ao histórico
+        if "status_historico" not in dados:
+            dados["status_historico"] = []
+            
+        dados["status_historico"].append(status)
+        
+        # Salvar os dados atualizados
+        with open(arquivo_json, 'w') as f:
+            json.dump(dados, f, indent=4)
+        
+        # Redirecionar para a página de visualização
+        return redirect(url_for('visualizar_plantio_logado', codigo_unico=codigo_unico))
+        
+    except Exception as e:
+        print("Erro ao adicionar status:", str(e))
+        return render_template('error.html', error=f"Erro ao adicionar status: {str(e)}"), 500
 
 @app.route('/gerar-pdf', methods=['POST'])
 def gerar_pdf():
@@ -422,7 +509,7 @@ def gerar_pdf():
         if not dados:
             return jsonify({'success': False, 'error': 'Dados não fornecidos'})
             
-        pdf_base64 = gerar_pdf_plantio(dados)
+        pdf_base64 = gerar_pdf_base64(dados)
         return jsonify({'success': True, 'pdf': pdf_base64})
         
     except Exception as e:
@@ -449,6 +536,15 @@ def autenticar():
         email = request.form.get('email')
         telefone = request.form.get('telefone')
         
+        # Obter os novos campos
+        estado = request.form.get('estado', '')
+        municipio = request.form.get('municipio', '')
+        distrito = request.form.get('distrito', '')
+        comunidade_rio = request.form.get('comunidade_rio', '')
+        nome_propriedade = request.form.get('nome_propriedade', '')
+        numero_propriedade = request.form.get('numero_propriedade', '')
+        numero_caf = request.form.get('numero_caf', '')
+        
         # Validar CPF
         cpf_limpo = re.sub(r'[^0-9]', '', cpf)
         if not validar_cpf(cpf_limpo):
@@ -463,6 +559,15 @@ def autenticar():
         session['logged_in'] = True
         session['documento'] = cpf
         session['tipo_documento'] = 'CPF'
+        
+        # Armazenar os novos campos na sessão
+        session['estado'] = estado
+        session['municipio'] = municipio
+        session['distrito'] = distrito
+        session['comunidade_rio'] = comunidade_rio
+        session['nome_propriedade'] = nome_propriedade
+        session['numero_propriedade'] = numero_propriedade
+        session['numero_caf'] = numero_caf
         
     elif tipo_pessoa == 'juridica':
         cnpj = request.form.get('cnpj')
