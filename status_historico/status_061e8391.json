@@ -1,0 +1,24 @@
+[
+    {
+        "status": 1,
+        "status_texto": "Em Formação",
+        "observacao": "EM FORMAÇAO",
+        "usuario": "iury gomes pinheiro",
+        "data_hora": "2025-03-17 16:53:17",
+        "localizacao": {
+            "latitude": 0.0658032,
+            "longitude": -51.0638647
+        }
+    },
+    {
+        "status": 2,
+        "status_texto": "Em Transporte",
+        "observacao": "EM TRANSPORTE",
+        "usuario": "iury gomes pinheiro",
+        "data_hora": "2025-03-17 16:54:40",
+        "localizacao": {
+            "latitude": 0.0658032,
+            "longitude": -51.0638647
+        }
+    }
+]
