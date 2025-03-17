@@ -570,6 +570,13 @@ def atualizar_status():
             'data_hora': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         
+        # Adicionar coordenadas se disponíveis
+        if 'latitude' in data and 'longitude' in data:
+            novo_status['localizacao'] = {
+                'latitude': data['latitude'],
+                'longitude': data['longitude']
+            }
+        
         # Adicionar ao histórico
         historico.append(novo_status)
         

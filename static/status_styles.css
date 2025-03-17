@@ -1,54 +1,70 @@
 .status-timeline {
-    margin-top: 1rem;
-    border-left: 2px solid #2E8B57;
-    padding-left: 1rem;
+    position: relative;
+    padding: 0;
+    margin: 0;
 }
 
 .status-item {
-    margin-bottom: 1rem;
-    padding: 1rem;
-    border: 1px solid #dee2e6;
-    border-radius: 0.25rem;
-    background-color: #fff;
-    transition: all 0.3s ease;
+    position: relative;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-left: 3px solid #dee2e6;
+    background-color: #f8f9fa;
+    border-radius: 0 5px 5px 0;
 }
 
-.status-item:hover {
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    transform: translateY(-2px);
+.status-item.current {
+    border-left: 3px solid #0d6efd;
+    background-color: #e9f0ff;
 }
 
 .status-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 10px;
+}
+
+.status-badge {
+    font-size: 0.85rem;
+    padding: 5px 10px;
+}
+
+.status-date {
+    font-size: 0.85rem;
+    color: #6c757d;
 }
 
 .status-body p {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
 }
 
-.badge {
-    padding: 0.5em 1em;
+.status-body a {
+    text-decoration: none;
 }
 
-.status-1 {
-    background-color: #FFC107;
-    color: #212529;
+.status-body a:hover {
+    text-decoration: underline;
 }
 
-.status-2 {
-    background-color: #17A2B8;
-    color: white;
+/* Estilo para o ícone de localização */
+.status-body .fa-map-marker-alt {
+    color: #dc3545;
 }
 
-.status-3 {
-    background-color: #FD7E14;
-    color: white;
+/* Estilo para o link de mapa */
+.status-body a .fa-external-link-alt {
+    font-size: 0.75rem;
 }
 
-.status-4 {
-    background-color: #28A745;
-    color: white;
+/* Responsividade para telas pequenas */
+@media (max-width: 576px) {
+    .status-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .status-date {
+        margin-top: 5px;
+    }
 }
