@@ -776,13 +776,22 @@ def listar_plantios():
                 with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
                     dados = json.load(f)
                     
-                    # Obter o status atual
+                    # Obter o status atual do arquivo de histórico
                     status_atual = None
-                    if "status" in dados:
-                        status_atual = dados["status"]
-                    elif "status_historico" in dados and dados["status_historico"]:
-                        # Pegar o último status do histórico
-                        status_atual = dados["status_historico"][-1].get("comentario", "")
+                    codigo_unico = dados.get("codigo_unico")
+                    arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo_unico}.json")
+                    
+                    if os.path.exists(arquivo_status):
+                        try:
+                            with open(arquivo_status, 'r') as fs:
+                                historico = json.load(fs)
+                                if historico and len(historico) > 0:
+                                    ultimo_status = historico[-1]  # Pegar o último status
+                                    status_texto = ultimo_status.get("status_texto", "")
+                                    observacao = ultimo_status.get("observacao", "")
+                                    status_atual = f"{status_texto}: {observacao}" if observacao else status_texto
+                        except Exception as e:
+                            print(f"Erro ao ler arquivo de status: {str(e)}")
                     
                     # Adicionar o status atual aos dados do plantio
                     dados["status_atual"] = status_atual
