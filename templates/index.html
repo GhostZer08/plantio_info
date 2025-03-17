@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPLAN Plantio QR Code - Teste de Deploy Automático</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary-green: #2E8B57;    /* Verde escuro do SIPLAN */
+            --secondary-green: #9ACD32;   /* Verde claro do SIPLAN */
+            --light-green: #B5E061;       /* Verde mais claro para destaque */
+            --light-gray: #f8f9fa;
+            --border-color: #e9ecef;
+        }
+
+        body { 
+            padding: 0;
+            background-color: var(--light-gray);
+            font-family: Arial, sans-serif;
+        }
+
+        .navbar {
+            background-color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .navbar-brand {
+            padding: 0;
+        }
+
+        .navbar-brand img {
+            height: auto;
+            width: 300px;
+            max-width: 100%;
+        }
+
+        .main-container {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 800px;
+            margin-top: 2rem;
+        }
+
+        .form-control {
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-green);
+            border-color: var(--primary-green);
+            padding: 0.75rem 2rem;
+            font-weight: 500;
+        }
+
+        .btn-primary:hover {
+            background-color: #246B47;
+            border-color: #246B47;
+        }
+
+        .btn-secondary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .btn-secondary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .hidden { 
+            display: none; 
+        }
+
+        #qrcode-container { 
+            margin-top: 20px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+
+        .plant-info-list {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .plant-info-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .plant-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .plant-info-item i {
+            width: 24px;
+            margin-right: 10px;
+            color: var(--primary-green);
+        }
+
+        .plant-info-label {
+            font-weight: 500;
+            color: #495057;
+            margin-right: 8px;
+        }
+
+        .plant-info-value {
+            color: #212529;
+            flex-grow: 1;
+        }
+
+        .modal-header {
+            background-color: var(--primary-green);
+            color: white;
+        }
+
+        .modal-header .btn-close {
+            color: white;
+        }
+
+        .success-message {
+            color: var(--primary-green);
+            margin: 1rem 0;
+            font-size: 1.2rem;
+        }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #qrcode-container, #qrcode-container * {
+                visibility: visible;
+            }
+            #qrcode-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <img src="https://tuxtu.com.br/wp-content/uploads/2023/08/LOGO-HORIZONTAL-SEM-FUNDO.png" alt="SIPLAN" class="img-fluid">
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="#" style="color: var(--primary-green) !important;">
+                    <i class="fas fa-question-circle"></i> Ajuda
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row mt-4 mb-4">
+            <div class="col-12 d-flex justify-content-between align-items-center">
+                <h1 class="text-center">SIPLAN Plantio QR Code</h1>
+                <div>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
+                        <i class="fas fa-sign-out-alt me-2"></i>Sair
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="main-container">
+            <h1 class="mb-4">Cadastro de Plantio</h1>
+            
+            <!-- Modal para leitura do QR Code -->
+            <div class="modal fade" id="qrReaderModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Leitor de QR Code</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-center">
+                                        <div id="reader"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal para exibir informações do QR Code -->
+            <div class="modal fade" id="infoModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title">
+                                <i class="fas fa-leaf"></i> Informações do Plantio
+                                <small class="float-end">Código: <span id="modal-codigo"></span></small>
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="qrCodeInfo" class="plant-info-list">
+                                <!-- As informações serão inseridas aqui -->
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-success" onclick="gerarPDF()">
+                                <i class="fas fa-file-pdf"></i> Gerar PDF
+                            </button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <form id="plantio-form" class="needs-validation" novalidate>
+                <div class="form-group">
+                    <div id="tipo-documento-indicator" class="alert alert-success">
+                        <i class="fas fa-id-card me-2"></i>Usando documento do usuário logado
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span>O sistema usará automaticamente o documento <strong>{{ session.get('documento', '') }}</strong> para o cadastro.</span>
+                    </div>
+                    
+                    <!-- Campos ocultos para localização -->
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                    <input type="hidden" id="precisao" name="precisao">
+                    <button type="button" id="btn-obter-localizacao" class="btn btn-sm btn-primary mb-3">
+                        <i class="fas fa-map-marker-alt me-2"></i>Obter Localização Atual
+                    </button>
+                    <div id="localizacao-feedback" class="alert alert-warning">
+                        <i class="fas fa-map-marker-alt me-2"></i><span id="localizacao-status">Aguardando captura de localização...</span>
+                    </div>
+                </div>
+                
+                <!-- DADOS DO PLANTIO -->
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-seedling me-2"></i>DADOS DO PLANTIO</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group mb-3">
+                            <label for="nome_vegetal">Nome do Vegetal</label>
+                            <input type="text" class="form-control" id="nome_vegetal" name="nome_vegetal" required>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="data_plantio">Data do Plantio</label>
+                            <input type="date" class="form-control" id="data_plantio" name="data_plantio" required>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="tipo_solo">Tipo de Solo</label>
+                            <input type="text" class="form-control" id="tipo_solo" name="tipo_solo" required>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="frequencia_rega">Frequência de Rega</label>
+                            <input type="text" class="form-control" id="frequencia_rega" name="frequencia_rega" required>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="exposicao_sol">Exposição ao Sol</label>
+                            <select class="form-control" id="exposicao_sol" name="exposicao_sol" required>
+                                <option value="">Selecione...</option>
+                                <option value="pleno sol">Pleno Sol</option>
+                                <option value="meia sombra">Meia Sombra</option>
+                                <option value="sombra">Sombra</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="tempo_colheita">Tempo até Colheita (dias)</label>
+                            <input type="number" class="form-control" id="tempo_colheita" name="tempo_colheita" required>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label for="observacoes">Observações</label>
+                            <textarea class="form-control" id="observacoes" name="observacoes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-save me-2"></i>Cadastrar
+                </button>
+            </form>
+
+            <div id="qrcode-container" class="hidden">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h3><i class="fas fa-qrcode me-2"></i>QR Code Gerado</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 text-center">
+                                <img id="qrcode-image" src="" alt="QR Code" class="img-fluid mb-3">
+                                <p class="mb-2">Código único: <strong id="codigo-unico"></strong></p>
+                                <div class="mt-3 mb-3">
+                                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-success me-2">
+                                        <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                                    </a>
+                                    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Sair
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-card">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <i class="fas fa-leaf"></i> Informações do Plantio
+                                            <span class="float-end" id="codigo-unico"></span>
+                                        </div>
+                                        <div class="card-body" id="info-details">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-lg btn-success btn-new-register" onclick="location.reload()">
+                        <i class="fas fa-plus-circle"></i> Novo Cadastro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+const ICONS = {
+    'codigo_unico': 'fas fa-hashtag',
+    'data_cadastro': 'fas fa-calendar-check',
+    'data_plantio': 'fas fa-calendar-alt',
+    'documento': 'fas fa-id-card',
+    'exposicao_sol': 'fas fa-sun',
+    'frequencia_rega': 'fas fa-tint',
+    'nome_vegetal': 'fas fa-seedling',
+    'observacoes': 'fas fa-comment',
+    'tempo_colheita': 'fas fa-clock',
+    'tipo_documento': 'fas fa-file-alt',
+    'tipo_solo': 'fas fa-mountain',
+    'nome_pessoa': 'fas fa-user',
+    'cpf_pessoa': 'fas fa-id-card'
+};
+
+const LABELS = {
+    'codigo_unico': 'Código Único',
+    'data_cadastro': 'Data do Cadastro',
+    'data_plantio': 'Data do Plantio',
+    'documento': 'Documento',
+    'exposicao_sol': 'Exposição ao Sol',
+    'frequencia_rega': 'Frequência de Rega',
+    'nome_vegetal': 'Nome do Vegetal',
+    'observacoes': 'Observações',
+    'tempo_colheita': 'Tempo até Colheita',
+    'tipo_documento': 'Tipo de Documento',
+    'tipo_solo': 'Tipo de Solo',
+    'nome_pessoa': 'Nome da Pessoa',
+    'cpf_pessoa': 'CPF da Pessoa'
+};
+
+const DISPLAY_ORDER = [
+    'codigo_unico',
+    'data_cadastro',
+    'nome_pessoa',
+    'cpf_pessoa',
+    'nome_vegetal',
+    'data_plantio',
+    'tipo_solo',
+    'frequencia_rega',
+    'exposicao_sol',
+    'tempo_colheita',
+    'observacoes',
+    'documento',
+    'tipo_documento'
+];
+
+$(document).ready(function(){
+    // Configuração inicial
+    
+    // Botão para obter localização
+    $('#btn-obter-localizacao').on('click', function() {
+        obterLocalizacao();
+    });
+    
+    // Tentar obter localização automaticamente ao carregar a página
+    setTimeout(obterLocalizacao, 1000);
+    
+    // Obter localização do usuário
+    obterLocalizacao();
+    
+    // Configuração do leitor QR Code
+    let html5QrcodeScanner = null;
+
+    window.iniciarLeitorQR = function() {
+        const modal = new bootstrap.Modal(document.getElementById('qrReaderModal'));
+        modal.show();
+
+        if (!html5QrcodeScanner) {
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader", { fps: 10, qrbox: 250 }
+            );
+            html5QrcodeScanner.render(onScanSuccess);
+        }
+    };
+
+    function onScanSuccess(decodedText) {
+        try {
+            const data = JSON.parse(decodedText);
+            preencherModalInfo(data);
+            
+            const qrModal = bootstrap.Modal.getInstance(document.getElementById('qrReaderModal'));
+            qrModal.hide();
+            
+            const infoModal = new bootstrap.Modal(document.getElementById('infoModal'));
+            infoModal.show();
+
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+            }
+        } catch (error) {
+            console.error("Erro ao processar QR Code:", error);
+            alert("QR Code inválido!");
+        }
+    }
+
+    $('#plantio-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!this.checkValidity()) {
+            e.stopPropagation();
+            $(this).addClass('was-validated');
+            return;
+        }
+        
+        // Tentar obter a localização novamente antes de enviar o formulário
+        if (!$('#latitude').val() || !$('#longitude').val()) {
+            obterLocalizacao();
+        }
+        
+        var formData = new FormData(this);
+        
+        $.ajax({
+            url: '/cadastrar',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            xhrFields: {
+                withCredentials: true
+            },
+            success: function(response) {
+                console.log("Resposta do servidor:", response);
+                
+                if (response.success) {
+                    // Exibir o QR code
+                    $('#qrcode-image').attr('src', 'data:image/png;base64,' + response.qr_code);
+                    $('#codigo-unico').text(response.info.codigo_unico);
+                    
+                    // Exibir informações do plantio
+                    const infoHtml = Object.entries(response.info)
+                        .filter(([key]) => key !== 'success' && key !== 'qr_code' && 
+                                          key !== 'latitude' && key !== 'longitude' && key !== 'precisao')
+                        .map(([key, value]) => {
+                            const icon = ICONS[key] || 'fas fa-info';
+                            const label = LABELS[key] || key;
+                            return `
+                                <div class="plant-info-item">
+                                    <i class="${icon}"></i>
+                                    <span class="plant-info-label">${label}:</span>
+                                    <span class="plant-info-value">${value}</span>
+                                </div>
+                            `;
+                        })
+                        .join('');
+                    
+                    // Adicionar informações de localização se disponíveis
+                    let localizacaoHtml = '';
+                    if (response.info.latitude && response.info.longitude) {
+                        localizacaoHtml = `
+                            <div class="card border-success mt-3 mb-3">
+                                <div class="card-header bg-success text-white">
+                                    <i class="fas fa-check-circle me-2"></i>Localização Disponível
+                                </div>
+                                <div class="card-body text-success">
+                                    <h5 class="card-title"><i class="fas fa-map-marker-alt me-2"></i>Sua localização foi capturada!</h5>
+                                    <p class="card-text">A localização foi registrada junto com os dados do plantio.</p>
+                                    <button type="button" class="btn btn-success btn-sm mt-2" 
+                                            onclick="window.open('https://www.google.com/maps/search/?api=1&query=${response.info.latitude},${response.info.longitude}', '_blank')">
+                                        <i class="fas fa-map me-2"></i>Ver no Google Maps
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    $('#info-details').html(infoHtml + localizacaoHtml);
+                    $('#plantio-form').hide();
+                    $('#qrcode-container').removeClass('hidden');
+                } else {
+                    alert('Erro ao cadastrar: ' + (response.error || 'Erro desconhecido'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Erro na requisição:', error);
+                console.error('Status:', status);
+                console.error('Resposta:', xhr.responseText);
+                alert('Erro ao cadastrar: ' + error);
+            }
+        });
+    });
+});
+
+// Função para obter a localização do usuário
+function obterLocalizacao() {
+    console.log("Iniciando solicitação de geolocalização...");
+    
+    if (navigator.geolocation) {
+        console.log("Navegador suporta geolocalização, solicitando permissão...");
+        
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                // Sucesso - armazena as coordenadas nos campos ocultos
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const acc = position.coords.accuracy;
+                
+                console.log("Localização obtida com sucesso:");
+                console.log("- Latitude: " + lat);
+                console.log("- Longitude: " + lng);
+                console.log("- Precisão: " + acc + " metros");
+                
+                $('#latitude').val(lat);
+                $('#longitude').val(lng);
+                $('#precisao').val(acc);
+                
+                $('#localizacao-feedback').removeClass('alert-warning').addClass('alert-success');
+                $('#localizacao-status').text('Localização capturada com sucesso!');
+            },
+            function(error) {
+                // Erro ao obter localização
+                console.error("Erro ao obter localização. Código: " + error.code);
+                console.error("Mensagem: " + error.message);
+                
+                $('#localizacao-feedback').removeClass('alert-success').addClass('alert-danger');
+                $('#localizacao-status').text('Erro ao capturar localização: ' + error.message);
+            },
+            {
+                enableHighAccuracy: true,  // Solicita a melhor precisão possível
+                timeout: 10000,            // Tempo limite de 10 segundos
+                maximumAge: 0              // Não usar cache
+            }
+        );
+    } else {
+        // Navegador não suporta geolocalização
+        console.error("Este navegador não suporta geolocalização.");
+        
+        $('#localizacao-feedback').removeClass('alert-success').addClass('alert-danger');
+        $('#localizacao-status').text('Geolocalização não suportada pelo navegador');
+    }
+}
+
+function downloadQRCode() {
+    const link = document.createElement('a');
+    link.download = 'qrcode.png';
+    link.href = document.getElementById('qrcode-image').src;
+    link.click();
+}
+
+function preencherModalInfo(data) {
+    $('#modal-codigo').text(data.codigo_unico);
+    
+    const infoHtml = DISPLAY_ORDER
+        .filter(key => data[key] !== undefined && 
+                key !== 'latitude' && key !== 'longitude' && key !== 'precisao')
+        .map(key => {
+            const icon = ICONS[key] || 'fas fa-info';
+            const label = LABELS[key] || key;
+            return `
+                <div class="plant-info-item">
+                    <i class="${icon}"></i>
+                    <span class="plant-info-label">${label}:</span>
+                    <span class="plant-info-value">${data[key]}</span>
+                </div>
+            `;
+        })
+        .join('');
+    
+    $('#qrCodeInfo').html(infoHtml);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar o formulário
+    const form = document.getElementById('plantio-form');
+    
+    // Inicializar o mapa de campos
+    const FORM_FIELDS = {
+        'nome_vegetal': document.getElementById('nome_vegetal'),
+        'data_plantio': document.getElementById('data_plantio'),
+        'tipo_solo': document.getElementById('tipo_solo'),
+        'nome_pessoa': document.getElementById('nome_pessoa'),
+        'cpf_pessoa': document.getElementById('cpf_pessoa')
+    };
+});
+    </script>
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPLAN Plantio QR Code - Escanear QR Code</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo img {
+            max-width: 120px;
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #2e7d32;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 15px;
+        }
+        .btn-success {
+            background-color: #2e7d32;
+            border-color: #2e7d32;
+        }
+        .btn-success:hover {
+            background-color: #1b5e20;
+            border-color: #1b5e20;
+        }
+        .scanner-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        #qr-video {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #2e7d32;
+            border-radius: 10px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+        .scanner-corner {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-color: #2e7d32;
+            border-width: 5px;
+        }
+        .scanner-corner-top-left {
+            top: 0;
+            left: 0;
+            border-top-style: solid;
+            border-left-style: solid;
+            border-bottom-style: none;
+            border-right-style: none;
+            border-top-left-radius: 10px;
+        }
+        .scanner-corner-top-right {
+            top: 0;
+            right: 0;
+            border-top-style: solid;
+            border-right-style: solid;
+            border-bottom-style: none;
+            border-left-style: none;
+            border-top-right-radius: 10px;
+        }
+        .scanner-corner-bottom-left {
+            bottom: 0;
+            left: 0;
+            border-bottom-style: solid;
+            border-left-style: solid;
+            border-top-style: none;
+            border-right-style: none;
+            border-bottom-left-radius: 10px;
+        }
+        .scanner-corner-bottom-right {
+            bottom: 0;
+            right: 0;
+            border-bottom-style: solid;
+            border-right-style: solid;
+            border-top-style: none;
+            border-left-style: none;
+            border-bottom-right-radius: 10px;
+        }
+        .back-btn {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Cabeçalho -->
+        <div class="header">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary back-btn">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div class="logo">
+                    <img src="https://tuxtu.com.br/wp-content/uploads/2023/08/LOGO-HORIZONTAL-SEM-FUNDO.png" alt="SIPLAN Logo" class="img-fluid" style="max-width: 200px;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scanner de QR Code -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Escanear QR Code</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <p>Posicione o QR Code do plantio na frente da câmera para visualizar suas informações.</p>
+                    <button id="start-camera" class="btn btn-success mb-3">
+                        <i class="fas fa-camera me-2"></i>Iniciar Câmera
+                    </button>
+                </div>
+                
+                <div class="scanner-container d-none" id="scanner-container">
+                    <video id="qr-video" autoplay></video>
+                    <div class="scanner-overlay">
+                        <div class="scanner-corner scanner-corner-top-left"></div>
+                        <div class="scanner-corner scanner-corner-top-right"></div>
+                        <div class="scanner-corner scanner-corner-bottom-left"></div>
+                        <div class="scanner-corner scanner-corner-bottom-right"></div>
+                    </div>
+                </div>
+                
+                <div id="scan-result" class="alert alert-success mt-4 d-none">
+                    <h5><i class="fas fa-check-circle me-2"></i>QR Code detectado!</h5>
+                    <p>Redirecionando para as informações do plantio...</p>
+                </div>
+                
+                <div id="scan-error" class="alert alert-danger mt-4 d-none">
+                    <h5><i class="fas fa-exclamation-circle me-2"></i>Erro ao escanear</h5>
+                    <p id="error-message">Não foi possível acessar a câmera. Verifique as permissões do navegador.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Instruções -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Instruções</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Clique no botão "Iniciar Câmera" para ativar a câmera do dispositivo.</li>
+                    <li>Posicione o QR Code do plantio dentro da área de escaneamento.</li>
+                    <li>Mantenha o QR Code estável para facilitar a leitura.</li>
+                    <li>Quando o QR Code for detectado, você será redirecionado automaticamente para a página de informações do plantio.</li>
+                </ol>
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb me-2"></i>Dica: Certifique-se de que o QR Code esteja bem iluminado e não esteja danificado para uma leitura mais eficiente.
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        $(document).ready(function() {
+            let html5QrCode;
+            
+            $('#start-camera').on('click', function() {
+                $('#scanner-container').removeClass('d-none');
+                $(this).addClass('d-none');
+                
+                html5QrCode = new Html5Qrcode("qr-video");
+                
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    {
+                        fps: 10,
+                        qrbox: 250
+                    },
+                    (decodedText) => {
+                        // QR Code detectado com sucesso
+                        html5QrCode.stop();
+                        
+                        $('#scan-result').removeClass('d-none');
+                        
+                        // Verificar se o texto decodificado é um código válido
+                        if (decodedText.length === 8) {
+                            // Redirecionar para a página de visualização do plantio
+                            setTimeout(function() {
+                                window.location.href = "/visualizar/" + decodedText;
+                            }, 1500);
+                        } else {
+                            $('#scan-error').removeClass('d-none');
+                            $('#error-message').text('QR Code inválido. Por favor, tente novamente.');
+                            $('#scanner-container').addClass('d-none');
+                            $('#start-camera').removeClass('d-none');
+                        }
+                    },
+                    (errorMessage) => {
+                        // Erro ao escanear QR Code
+                        $('#scan-error').removeClass('d-none');
+                        $('#error-message').text(errorMessage);
+                    }
+                ).catch((err) => {
+                    // Erro ao iniciar a câmera
+                    $('#scan-error').removeClass('d-none');
+                    $('#error-message').text('Erro ao acessar a câmera: ' + err);
+                    $('#scanner-container').addClass('d-none');
+                    $('#start-camera').removeClass('d-none');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

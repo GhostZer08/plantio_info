@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPLAN Plantio QR Code - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo img {
+            max-width: 120px;
+        }
+        .user-info {
+            text-align: right;
+        }
+        .user-info h5 {
+            margin-bottom: 5px;
+            color: #2e7d32;
+        }
+        .user-info p {
+            margin-bottom: 0;
+            color: #6c757d;
+        }
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+            height: 100%;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            background-color: #2e7d32;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 15px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+        .card-icon {
+            font-size: 48px;
+            color: #2e7d32;
+            margin-bottom: 15px;
+        }
+        .btn-success {
+            background-color: #2e7d32;
+            border-color: #2e7d32;
+        }
+        .btn-success:hover {
+            background-color: #1b5e20;
+            border-color: #1b5e20;
+        }
+        .btn-outline-success {
+            color: #2e7d32;
+            border-color: #2e7d32;
+        }
+        .btn-outline-success:hover {
+            background-color: #2e7d32;
+            color: white;
+        }
+        .logout-btn {
+            color: #dc3545;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container dashboard-container">
+        <!-- Cabeçalho -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://tuxtu.com.br/wp-content/uploads/2023/08/LOGO-HORIZONTAL-SEM-FUNDO.png" alt="SIPLAN Logo" class="img-fluid" style="max-width: 200px;">
+            </div>
+            <div class="user-info">
+                <h5>
+                    {% if session.get('tipo_pessoa') == 'fisica' %}
+                        <i class="fas fa-user me-2"></i>{{ session.get('nome', 'Usuário') }}
+                    {% else %}
+                        <i class="fas fa-building me-2"></i>{{ session.get('razao_social', 'Empresa') }}
+                    {% endif %}
+                </h5>
+                <p>
+                    {% if session.get('tipo_pessoa') == 'fisica' %}
+                        CPF: {{ session.get('cpf', '') }}
+                    {% else %}
+                        CNPJ: {{ session.get('cnpj', '') }}
+                    {% endif %}
+                </p>
+                <a href="{{ url_for('logout') }}" class="logout-btn">
+                    <i class="fas fa-sign-out-alt me-1"></i>Sair
+                </a>
+            </div>
+        </div>
+        
+        <!-- Conteúdo do Dashboard -->
+        <div class="row">
+            <!-- Card para Adicionar Informações do Plantio -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-seedling me-2"></i>Plantio</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="card-icon">
+                            <i class="fas fa-leaf"></i>
+                        </div>
+                        <h5 class="card-title">Adicionar Informações do Plantio</h5>
+                        <p class="card-text">Cadastre um novo plantio e gere um QR Code para identificação.</p>
+                        <a href="{{ url_for('index') }}" class="btn btn-success btn-lg mt-3">
+                            <i class="fas fa-plus-circle me-2"></i>Adicionar Plantio
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card para Visualizar Plantios -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Meus Plantios</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="card-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <h5 class="card-title">Visualizar Meus Plantios</h5>
+                        <p class="card-text">Veja todos os plantios cadastrados por você.</p>
+                        <a href="{{ url_for('listar_plantios') }}" class="btn btn-success btn-lg mt-3">
+                            <i class="fas fa-eye me-2"></i>Ver Plantios
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Card para Escanear QR Code -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Escanear</h5>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="card-icon">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <h5 class="card-title">Escanear QR Code</h5>
+                        <p class="card-text">Escaneie um QR Code para visualizar informações de um plantio.</p>
+                        <a href="{{ url_for('escanear') }}" class="btn btn-success btn-lg mt-3">
+                            <i class="fas fa-qrcode me-2"></i>Escanear QR Code
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estatísticas Rápidas -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Estatísticas</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <h3 class="text-success">{{ session.get('total_plantios', 0) }}</h3>
+                                <p>Plantios Cadastrados</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <h3 class="text-success">{{ session.get('total_especies', 0) }}</h3>
+                                <p>Espécies Diferentes</p>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <h3 class="text-success">{{ session.get('ultimo_plantio', 'Nenhum') }}</h3>
+                                <p>Último Plantio</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</body>
+</html>

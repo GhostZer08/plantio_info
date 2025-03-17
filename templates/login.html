@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIPLAN Plantio QR Code - Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .login-container {
+            max-width: 500px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo img {
+            max-width: 150px;
+        }
+        .login-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2e7d32;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .btn-success {
+            background-color: #2e7d32;
+            border-color: #2e7d32;
+        }
+        .btn-success:hover {
+            background-color: #1b5e20;
+            border-color: #1b5e20;
+        }
+        .tab-content {
+            padding: 20px 0;
+        }
+        .nav-tabs .nav-link {
+            color: #6c757d;
+        }
+        .nav-tabs .nav-link.active {
+            color: #2e7d32;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-container">
+            <div class="logo">
+                <img src="https://tuxtu.com.br/wp-content/uploads/2023/08/LOGO-HORIZONTAL-SEM-FUNDO.png" alt="SIPLAN Logo" class="img-fluid">
+            </div>
+            <h2 class="login-title">SIPLAN Plantio QR Code</h2>
+            
+            <ul class="nav nav-tabs" id="loginTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="cpf-tab" data-bs-toggle="tab" data-bs-target="#cpf" type="button" role="tab" aria-controls="cpf" aria-selected="true">
+                        <i class="fas fa-user me-2"></i>Pessoa Física
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cnpj-tab" data-bs-toggle="tab" data-bs-target="#cnpj" type="button" role="tab" aria-controls="cnpj" aria-selected="false">
+                        <i class="fas fa-building me-2"></i>Pessoa Jurídica
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="tab-content" id="loginTabsContent">
+                <!-- Formulário de Pessoa Física (CPF) -->
+                <div class="tab-pane fade show active" id="cpf" role="tabpanel" aria-labelledby="cpf-tab">
+                    <form action="{{ url_for('autenticar') }}" method="post">
+                        <input type="hidden" name="tipo_pessoa" value="fisica">
+                        
+                        <div class="form-group">
+                            <label for="cpf"><i class="fas fa-id-card me-2"></i>CPF:</label>
+                            <input type="text" class="form-control" id="cpf" name="cpf" placeholder="Digite seu CPF (apenas números)" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nome_pf"><i class="fas fa-user me-2"></i>Nome Completo:</label>
+                            <input type="text" class="form-control" id="nome_pf" name="nome" placeholder="Digite seu nome completo" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="estado_pf"><i class="fas fa-map-marker me-2"></i>Estado:</label>
+                            <input type="text" class="form-control" id="estado_pf" name="estado" placeholder="Digite seu estado">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="municipio_pf"><i class="fas fa-city me-2"></i>Município:</label>
+                            <input type="text" class="form-control" id="municipio_pf" name="municipio" placeholder="Digite seu município">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="distrito_pf"><i class="fas fa-map-signs me-2"></i>Distrito:</label>
+                            <input type="text" class="form-control" id="distrito_pf" name="distrito" placeholder="Digite seu distrito">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="comunidade_rio_pf"><i class="fas fa-water me-2"></i>Comunidade ou Rio:</label>
+                            <input type="text" class="form-control" id="comunidade_rio_pf" name="comunidade_rio" placeholder="Digite sua comunidade ou rio">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nome_propriedade_pf"><i class="fas fa-home me-2"></i>Nome da Propriedade:</label>
+                            <input type="text" class="form-control" id="nome_propriedade_pf" name="nome_propriedade" placeholder="Digite o nome da propriedade">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="numero_propriedade_pf"><i class="fas fa-hashtag me-2"></i>Número da Propriedade:</label>
+                            <input type="text" class="form-control" id="numero_propriedade_pf" name="numero_propriedade" placeholder="Digite o número da propriedade">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="numero_caf_pf"><i class="fas fa-file-contract me-2"></i>Número do CAF:</label>
+                            <input type="text" class="form-control" id="numero_caf_pf" name="numero_caf" placeholder="Digite o número do CAF">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email_pf"><i class="fas fa-envelope me-2"></i>E-mail:</label>
+                            <input type="email" class="form-control" id="email_pf" name="email" placeholder="Digite seu e-mail" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="telefone_pf"><i class="fas fa-phone me-2"></i>Telefone:</label>
+                            <input type="tel" class="form-control" id="telefone_pf" name="telefone" placeholder="Digite seu telefone" required>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Formulário de Pessoa Jurídica (CNPJ) -->
+                <div class="tab-pane fade" id="cnpj" role="tabpanel" aria-labelledby="cnpj-tab">
+                    <form action="{{ url_for('autenticar') }}" method="post">
+                        <input type="hidden" name="tipo_pessoa" value="juridica">
+                        
+                        <div class="form-group">
+                            <label for="cnpj"><i class="fas fa-building me-2"></i>CNPJ:</label>
+                            <input type="text" class="form-control" id="cnpj" name="cnpj" placeholder="Digite o CNPJ (apenas números)" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="razao_social"><i class="fas fa-file-signature me-2"></i>Razão Social:</label>
+                            <input type="text" class="form-control" id="razao_social" name="razao_social" placeholder="Digite a razão social" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nome_fantasia"><i class="fas fa-store me-2"></i>Nome Fantasia:</label>
+                            <input type="text" class="form-control" id="nome_fantasia" name="nome_fantasia" placeholder="Digite o nome fantasia">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="email_pj"><i class="fas fa-envelope me-2"></i>E-mail:</label>
+                            <input type="email" class="form-control" id="email_pj" name="email" placeholder="Digite o e-mail" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="telefone_pj"><i class="fas fa-phone me-2"></i>Telefone:</label>
+                            <input type="tel" class="form-control" id="telefone_pj" name="telefone" placeholder="Digite o telefone" required>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-sign-in-alt me-2"></i>Entrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Máscara para CPF
+        $('#cpf').on('input', function() {
+            let value = $(this).val().replace(/\D/g, '');
+            if (value.length > 11) value = value.substring(0, 11);
+            
+            if (value.length > 9) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, '$1.$2.$3-$4');
+            } else if (value.length > 6) {
+                value = value.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+            } else if (value.length > 3) {
+                value = value.replace(/^(\d{3})(\d{0,3}).*/, '$1.$2');
+            }
+            
+            $(this).val(value);
+        });
+        
+        // Máscara para CNPJ
+        $('#cnpj').on('input', function() {
+            let value = $(this).val().replace(/\D/g, '');
+            if (value.length > 14) value = value.substring(0, 14);
+            
+            if (value.length > 12) {
+                value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+            } else if (value.length > 8) {
+                value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, '$1.$2.$3/$4');
+            } else if (value.length > 5) {
+                value = value.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+            } else if (value.length > 2) {
+                value = value.replace(/^(\d{2})(\d{0,3}).*/, '$1.$2');
+            }
+            
+            $(this).val(value);
+        });
+    </script>
+</body>
+</html>

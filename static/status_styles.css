@@ -1,0 +1,54 @@
+.status-timeline {
+    margin-top: 1rem;
+    border-left: 2px solid #2E8B57;
+    padding-left: 1rem;
+}
+
+.status-item {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    transition: all 0.3s ease;
+}
+
+.status-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.status-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.status-body p {
+    margin-bottom: 0.25rem;
+}
+
+.badge {
+    padding: 0.5em 1em;
+}
+
+.status-1 {
+    background-color: #FFC107;
+    color: #212529;
+}
+
+.status-2 {
+    background-color: #17A2B8;
+    color: white;
+}
+
+.status-3 {
+    background-color: #FD7E14;
+    color: white;
+}
+
+.status-4 {
+    background-color: #28A745;
+    color: white;
+}
