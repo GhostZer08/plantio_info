@@ -229,6 +229,15 @@ def index():
     if 'tipo_pessoa' not in session:
         return redirect(url_for('login'))
     
+    # Redirecionar para o dashboard
+    return redirect(url_for('dashboard'))
+
+@app.route('/cadastrar-plantio')
+def cadastrar_plantio():
+    # Verificar se o usuário está logado
+    if 'tipo_pessoa' not in session:
+        return redirect(url_for('login'))
+    
     return render_template('index.html')
 
 @app.route('/validar-documento', methods=['POST'])
