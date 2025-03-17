@@ -775,6 +775,18 @@ def listar_plantios():
             if arquivo.endswith('.json'):
                 with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
                     dados = json.load(f)
+                    
+                    # Obter o status atual
+                    status_atual = None
+                    if "status" in dados:
+                        status_atual = dados["status"]
+                    elif "status_historico" in dados and dados["status_historico"]:
+                        # Pegar o último status do histórico
+                        status_atual = dados["status_historico"][-1].get("comentario", "")
+                    
+                    # Adicionar o status atual aos dados do plantio
+                    dados["status_atual"] = status_atual
+                    
                     plantios.append(dados)
     
     return render_template('listar_plantios.html', plantios=plantios)

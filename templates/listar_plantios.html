@@ -90,6 +90,20 @@
         .back-btn {
             margin-right: 15px;
         }
+        .badge.bg-info {
+            background-color: #0288d1 !important;
+            color: white;
+            font-weight: normal;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: normal;
+            text-align: left;
+            line-height: 1.2;
+            max-width: 100%;
+            display: inline-block;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +151,13 @@
                                                     <i class="fas fa-tint me-1"></i>{{ plantio.frequencia_rega }}
                                                     <i class="fas fa-sun ms-2 me-1"></i>{{ plantio.exposicao_sol }}
                                                 </p>
+                                                {% if plantio.status_atual %}
+                                                <p class="mt-2 mb-0">
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-info-circle me-1"></i>Status: {{ plantio.status_atual }}
+                                                    </span>
+                                                </p>
+                                                {% endif %}
                                             </div>
                                         </div>
                                     </div>
