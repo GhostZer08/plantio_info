@@ -1,72 +1,62 @@
-# Sistema de Cadastro de Plantio
+# SIPLAN - Sistema de Informações de Plantio
 
-Este programa permite cadastrar informações sobre o plantio de vegetais e gera um QR Code contendo todas as informações registradas.
+Sistema para gerenciamento de informações de plantio com QR Code.
 
-## Requisitos
+## Funcionalidades
 
-- Python 3.x
-- Bibliotecas necessárias (instale usando o requirements.txt)
+- Cadastro de plantios com informações detalhadas
+- Geração de QR Codes para identificação de plantios
+- Visualização de informações de plantio via QR Code
+- Sistema de autenticação de usuários
+- Acompanhamento de status de plantios com histórico
 
-## Como instalar
+## Implantação no Render
 
-1. Clone ou baixe este repositório
-2. Instale as dependências:
-```bash
-pip install -r requirements.txt
-```
+### Opção 1: Implantação Automática via GitHub Actions
 
-## Como usar
+1. Crie uma conta no [Render](https://render.com/) se ainda não tiver uma
+2. Crie um novo serviço Web no Render
+3. Conecte seu repositório GitHub
+4. Obtenha o ID do serviço do Render (está na URL quando você está visualizando o serviço, algo como `srv-abcdefgh`)
+5. Obtenha uma chave de API do Render:
+   - Faça login no Render
+   - Vá para "Account Settings" > "API Keys"
+   - Crie uma nova chave de API
+6. Configure os segredos no GitHub:
+   - Vá para seu repositório no GitHub
+   - Clique em "Settings" > "Secrets and variables" > "Actions"
+   - Adicione dois novos segredos:
+     - Nome: `RENDER_API_KEY`, Valor: sua chave de API do Render
+     - Nome: `RENDER_SERVICE_ID`, Valor: o ID do serviço do Render
+7. Faça push para a branch `main` ou `master` para acionar a implantação automática
 
-1. Execute o programa:
-```bash
-python plantio.py
-```
+### Opção 2: Implantação Direta no Render (mais simples)
 
-2. Preencha as informações solicitadas sobre o plantio
-3. O programa irá gerar um QR Code em formato PNG no mesmo diretório
-4. Use qualquer leitor de QR Code para visualizar as informações cadastradas
-
-## Informações coletadas
-
-- Nome do vegetal
-- Data do plantio
-- Tipo de solo
-- Frequência de rega
-- Exposição ao sol necessária
-- Tempo estimado até a colheita
-- Observações adicionais
-- Data e hora do cadastro
-
-## Como hospedar no Render
-
-1. Crie uma conta no [Render](https://render.com)
-
-2. Conecte sua conta do GitHub ao Render
-
-3. Crie um novo repositório no GitHub e faça push do seu código:
-   ```bash
-   git init
-   git add .
-   git commit -m "Primeira versão"
-   git remote add origin <seu-repositorio>
-   git push -u origin main
-   ```
-
-4. No Render:
-   - Clique em "New +"
-   - Selecione "Web Service"
-   - Conecte seu repositório do GitHub
-   - O Render detectará automaticamente que é uma aplicação Python
-   - Use as seguintes configurações:
-     - Name: plantio-info (ou outro nome de sua escolha)
-     - Environment: Python
-     - Build Command: `pip install -r requirements.txt`
-     - Start Command: `gunicorn app:app`
-
+1. Faça login no [Render](https://render.com/)
+2. Clique em "New" > "Web Service"
+3. Conecte seu repositório GitHub
+4. Configure o serviço:
+   - Nome: plantio-info
+   - Ambiente: Python
+   - Comando de construção: `pip install -r requirements.txt`
+   - Comando de início: `gunicorn wsgi:app --bind 0.0.0.0:$PORT --log-level debug`
+   - Selecione o plano gratuito ou pago conforme sua necessidade
 5. Clique em "Create Web Service"
 
-O Render irá automaticamente fazer deploy da sua aplicação e fornecerá uma URL pública.
+O Render irá automaticamente detectar mudanças no seu repositório GitHub e implantar o aplicativo.
 
-## Importante
+## Desenvolvimento Local
 
-Após o deploy, atualize a URL no código do QR Code em `app.py` para usar a URL fornecida pelo Render ao invés do IP local.
+1. Clone o repositório
+2. Instale as dependências: `pip install -r requirements.txt`
+3. Execute o aplicativo: `python app.py`
+4. Acesse o aplicativo em `http://localhost:5000`
+
+## Tecnologias Utilizadas
+
+- Python
+- Flask
+- QR Code
+- Bootstrap
+- JavaScript
+- JSON para armazenamento de dados
