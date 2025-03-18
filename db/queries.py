@@ -1,4 +1,4 @@
-from .connection import get_connection
+from .db_connection import get_connection
 
 def salvar_usuario(tipo_pessoa, dados):
     """Insere ou atualiza um usuário no banco."""

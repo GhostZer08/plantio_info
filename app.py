@@ -658,9 +658,9 @@ def autenticar():
     # Limpar a sessão existente
     session.clear()
     if tipo_pessoa == 'fisica':
-    cpf = re.sub(r'[^0-9]', '', request.form.get('cpf'))  # Limpa CPF
-    if not validar_cpf(cpf):
-        return "CPF inválido", 400
+        cpf = re.sub(r'[^0-9]', '', request.form.get('cpf'))  # Limpa CPF
+        if not validar_cpf(cpf):
+            return "CPF inválido", 400
         
         dados = {
             'cpf': cpf,
