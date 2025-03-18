@@ -14,6 +14,8 @@ from reportlab.lib.units import inch
 import os
 import uuid
 import json
+from db.queries import salvar_usuario, buscar_usuario
+
 
 app = Flask(__name__)
 app.secret_key = 'siplan_plantio_qrcode_secret_key'  # Chave secreta para a sessão
@@ -655,76 +657,127 @@ def autenticar():
     
     # Limpar a sessão existente
     session.clear()
-    
     if tipo_pessoa == 'fisica':
-        cpf = request.form.get('cpf')
-        nome = request.form.get('nome')
-        email = request.form.get('email')
-        telefone = request.form.get('telefone')
+    cpf = re.sub(r'[^0-9]', '', request.form.get('cpf'))  # Limpa CPF
+    if not validar_cpf(cpf):
+        return "CPF inválido", 400
         
-        # Obter os novos campos
-        estado = request.form.get('estado', '')
-        municipio = request.form.get('municipio', '')
-        distrito = request.form.get('distrito', '')
-        comunidade_rio = request.form.get('comunidade_rio', '')
-        nome_propriedade = request.form.get('nome_propriedade', '')
-        numero_propriedade = request.form.get('numero_propriedade', '')
-        numero_caf = request.form.get('numero_caf', '')
-        
-        # Validar CPF
-        cpf_limpo = re.sub(r'[^0-9]', '', cpf)
-        if not validar_cpf(cpf_limpo):
-            return "CPF inválido", 400
-        
-        # Armazenar dados na sessão
-        session['tipo_pessoa'] = 'fisica'
-        session['cpf'] = cpf
-        session['nome'] = nome
-        session['email'] = email
-        session['telefone'] = telefone
-        session['logged_in'] = True
+        dados = {
+            'cpf': cpf,
+            'nome': request.form.get('nome'),
+            'email': request.form.get('email'),
+            'telefone': request.form.get('telefone'),
+            'estado': request.form.get('estado', ''),
+            'municipio': request.form.get('municipio', ''),
+            'distrito': request.form.get('distrito', ''),
+            'comunidade_rio': request.form.get('comunidade_rio', ''),
+            'nome_propriedade': request.form.get('nome_propriedade', ''),
+            'numero_propriedade': request.form.get('numero_propriedade', ''),
+            'numero_caf': request.form.get('numero_caf', ''),
+        }
         session['documento'] = cpf
         session['tipo_documento'] = 'CPF'
-        
-        # Armazenar os novos campos na sessão
-        session['estado'] = estado
-        session['municipio'] = municipio
-        session['distrito'] = distrito
-        session['comunidade_rio'] = comunidade_rio
-        session['nome_propriedade'] = nome_propriedade
-        session['numero_propriedade'] = numero_propriedade
-        session['numero_caf'] = numero_caf
-        
+
     elif tipo_pessoa == 'juridica':
-        cnpj = request.form.get('cnpj')
-        razao_social = request.form.get('razao_social')
-        nome_fantasia = request.form.get('nome_fantasia')
-        email = request.form.get('email')
-        telefone = request.form.get('telefone')
-        
-        # Validar CNPJ
-        cnpj_limpo = re.sub(r'[^0-9]', '', cnpj)
-        if not validar_cnpj(cnpj_limpo):
+        cnpj = re.sub(r'[^0-9]', '', request.form.get('cnpj'))  # Limpa CNPJ
+        if not validar_cnpj(cnpj):
             return "CNPJ inválido", 400
-        
-        # Armazenar dados na sessão
-        session['tipo_pessoa'] = 'juridica'
-        session['cnpj'] = cnpj
-        session['razao_social'] = razao_social
-        session['nome_fantasia'] = nome_fantasia
-        session['email'] = email
-        session['telefone'] = telefone
-        session['logged_in'] = True
+
+        dados = {
+            'cnpj': cnpj,
+            'razao_social': request.form.get('razao_social'),
+            'nome_fantasia': request.form.get('nome_fantasia'),
+            'email': request.form.get('email'),
+            'telefone': request.form.get('telefone'),
+        }
         session['documento'] = cnpj
         session['tipo_documento'] = 'CNPJ'
-    
+
     else:
         return "Tipo de pessoa inválido", 400
+
+    # Buscar usuário no banco
+    usuario = buscar_usuario(session['documento'], session['tipo_documento'])
     
-    # Calcular estatísticas para o dashboard
-    calcular_estatisticas()
-    
+    if not usuario:
+        salvar_usuario(tipo_pessoa, dados)  # Se não existir, salvar no banco
+
+    # Armazenar dados na sessão
+    session.update(dados)
+    session['tipo_pessoa'] = tipo_pessoa
+    session['logged_in'] = True
+
     return redirect(url_for('dashboard'))
+    
+    # if tipo_pessoa == 'fisica':
+    #     cpf = request.form.get('cpf')
+    #     nome = request.form.get('nome')
+    #     email = request.form.get('email')
+    #     telefone = request.form.get('telefone')
+        
+    #     # Obter os novos campos
+    #     estado = request.form.get('estado', '')
+    #     municipio = request.form.get('municipio', '')
+    #     distrito = request.form.get('distrito', '')
+    #     comunidade_rio = request.form.get('comunidade_rio', '')
+    #     nome_propriedade = request.form.get('nome_propriedade', '')
+    #     numero_propriedade = request.form.get('numero_propriedade', '')
+    #     numero_caf = request.form.get('numero_caf', '')
+        
+    #     # Validar CPF
+    #     cpf_limpo = re.sub(r'[^0-9]', '', cpf)
+    #     if not validar_cpf(cpf_limpo):
+    #         return "CPF inválido", 400
+        
+    #     # Armazenar dados na sessão
+    #     session['tipo_pessoa'] = 'fisica'
+    #     session['cpf'] = cpf
+    #     session['nome'] = nome
+    #     session['email'] = email
+    #     session['telefone'] = telefone
+    #     session['logged_in'] = True
+    #     session['documento'] = cpf
+    #     session['tipo_documento'] = 'CPF'
+        
+    #     # Armazenar os novos campos na sessão
+    #     session['estado'] = estado
+    #     session['municipio'] = municipio
+    #     session['distrito'] = distrito
+    #     session['comunidade_rio'] = comunidade_rio
+    #     session['nome_propriedade'] = nome_propriedade
+    #     session['numero_propriedade'] = numero_propriedade
+    #     session['numero_caf'] = numero_caf
+        
+    # elif tipo_pessoa == 'juridica':
+    #     cnpj = request.form.get('cnpj')
+    #     razao_social = request.form.get('razao_social')
+    #     nome_fantasia = request.form.get('nome_fantasia')
+    #     email = request.form.get('email')
+    #     telefone = request.form.get('telefone')
+        
+    #     # Validar CNPJ
+    #     cnpj_limpo = re.sub(r'[^0-9]', '', cnpj)
+    #     if not validar_cnpj(cnpj_limpo):
+    #         return "CNPJ inválido", 400
+        
+    #     # Armazenar dados na sessão
+    #     session['tipo_pessoa'] = 'juridica'
+    #     session['cnpj'] = cnpj
+    #     session['razao_social'] = razao_social
+    #     session['nome_fantasia'] = nome_fantasia
+    #     session['email'] = email
+    #     session['telefone'] = telefone
+    #     session['logged_in'] = True
+    #     session['documento'] = cnpj
+    #     session['tipo_documento'] = 'CNPJ'
+    
+    # else:
+    #     return "Tipo de pessoa inválido", 400
+    
+    # # Calcular estatísticas para o dashboard
+    # calcular_estatisticas()
+    
+    # return redirect(url_for('dashboard'))
 
 def calcular_estatisticas():
     """Calcula estatísticas para exibir no dashboard"""
