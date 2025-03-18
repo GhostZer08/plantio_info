@@ -1,4 +1,8 @@
-from app import app
+from app import app, db
+
+# Inicializar o banco de dados
+with app.app_context():
+    db.create_all()
 
 if __name__ == "__main__":
     import os
