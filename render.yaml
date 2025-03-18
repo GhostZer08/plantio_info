@@ -2,12 +2,16 @@ services:
   - type: web
     name: plantio-info
     env: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python -c "from app import app, db; app.app_context().push(); db.create_all()"
     startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --log-level debug
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: PYTHONUNBUFFERED
         value: "true"
+      - key: FLASK_APP
+        value: app.py
+      - key: FLASK_ENV
+        value: production
     healthCheckPath: /
     autoDeploy: true
