@@ -10,6 +10,58 @@ Sistema para gerenciamento de informações de plantio com QR Code.
 - Sistema de autenticação de usuários
 - Acompanhamento de status de plantios com histórico
 
+## Tecnologias Utilizadas
+
+- Python
+- Flask
+- QR Code
+- Bootstrap
+- JavaScript
+- JSON para armazenamento de dados
+- SQLite (Banco de dados)
+- Flask-SQLAlchemy (ORM)
+- Flask-Migrate (Migrações de banco de dados)
+- Flask-Login (Autenticação de usuários)
+
+## Estrutura do Banco de Dados
+
+### Tabela Usuarios
+- id (PK)
+- tipo_pessoa (física ou jurídica)
+- nome (para pessoa física)
+- cpf (para pessoa física)
+- razao_social (para pessoa jurídica)
+- cnpj (para pessoa jurídica)
+- data_cadastro
+
+### Tabela Plantios
+- id (PK)
+- codigo_unico (código para QR Code)
+- nome_vegetal
+- data_plantio
+- tipo_solo
+- frequencia_rega
+- exposicao_sol
+- tempo_colheita
+- observacoes
+- data_cadastro
+- latitude
+- longitude
+- precisao
+- usuario_id (FK para Usuarios)
+
+### Tabela StatusPlantio
+- id (PK)
+- status (1, 2, 3, 4)
+- status_texto (Em Formação, Em Transporte, Em Distribuição, Plantado)
+- observacao
+- usuario
+- data_hora
+- latitude
+- longitude
+- precisao
+- plantio_id (FK para Plantios)
+
 ## Implantação no Render
 
 ### Opção 1: Implantação Automática via GitHub Actions
@@ -52,11 +104,15 @@ O Render irá automaticamente detectar mudanças no seu repositório GitHub e im
 3. Execute o aplicativo: `python app.py`
 4. Acesse o aplicativo em `http://localhost:5000`
 
-## Tecnologias Utilizadas
+## Migração de Dados
 
-- Python
-- Flask
-- QR Code
-- Bootstrap
-- JavaScript
-- JSON para armazenamento de dados
+Para migrar dados dos arquivos JSON para o banco de dados SQLite:
+
+```
+python migrate_data.py
+```
+
+## Acesso
+
+- URL: http://localhost:5000
+- Login: Utilize CPF (pessoa física) ou CNPJ (pessoa jurídica)

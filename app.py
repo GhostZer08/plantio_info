@@ -1,829 +1,402 @@
-from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, jsonify, send_file
 from flask_bootstrap import Bootstrap
+import os
+import json
 import qrcode
 from io import BytesIO
-import base64
-import json
-from datetime import datetime
-import re
-from reportlab.lib import colors
+from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-import os
-import uuid
-import json
+from reportlab.lib.utils import ImageReader
+from datetime import datetime
+import random
+import string
+from models import db, Usuario, Plantio, StatusPlantio
+from flask_migrate import Migrate
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 app = Flask(__name__)
-app.secret_key = 'siplan_plantio_qrcode_secret_key'  # Chave secreta para a sessão
+app.secret_key = 'sua_chave_secreta_aqui'
 Bootstrap(app)
 
-# Diretório para armazenar os dados dos plantios
-DATA_DIR = 'dados_plantio'
+# Configuração do banco de dados
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///plantio_info.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db.init_app(app)
+migrate = Migrate(app, db)
+
+# Configuração do login manager
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Usuario.query.get(int(user_id))
+
+# Diretórios para armazenamento de dados (para compatibilidade com o sistema antigo)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'dados_plantio')
+STATUS_DIR = os.path.join(BASE_DIR, 'status_historico')
+
+# Criar diretórios se não existirem
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
-
-# Constantes para status de acompanhamento
-STATUS_TYPES = {
-    1: "Em Formação",
-    2: "Em Transporte",
-    3: "Em Plantio",
-    4: "Plantado"
-}
-
-# Diretório para armazenar histórico de status
-STATUS_DIR = 'status_historico'
 if not os.path.exists(STATUS_DIR):
     os.makedirs(STATUS_DIR)
 
-def validar_cpf(cpf):
-    # Remove caracteres não numéricos
-    cpf = re.sub(r'[^0-9]', '', cpf)
-    
-    if len(cpf) != 11:
-        return False
-        
-    # Verifica se todos os dígitos são iguais
-    if len(set(cpf)) == 1:
-        return False
-    
-    # Calcula primeiro dígito verificador
-    soma = sum(int(cpf[i]) * (10 - i) for i in range(9))
-    digito = (soma * 10) % 11
-    if digito == 10:
-        digito = 0
-    if digito != int(cpf[9]):
-        return False
-    
-    # Calcula segundo dígito verificador
-    soma = sum(int(cpf[i]) * (11 - i) for i in range(10))
-    digito = (soma * 10) % 11
-    if digito == 10:
-        digito = 0
-    if digito != int(cpf[10]):
-        return False
-    
-    return True
-
-def validar_cnpj(cnpj):
-    # Remove caracteres não numéricos
-    cnpj = re.sub(r'[^0-9]', '', cnpj)
-    
-    if len(cnpj) != 14:
-        return False
-        
-    # Verifica se todos os dígitos são iguais
-    if len(set(cnpj)) == 1:
-        return False
-    
-    # Primeiro dígito
-    soma = sum(int(cnpj[i]) * (5 - i if i < 4 else 13 - i) for i in range(12))
-    digito = 11 - (soma % 11)
-    if digito >= 10:
-        digito = 0
-    if digito != int(cnpj[12]):
-        return False
-    
-    # Segundo dígito
-    soma = sum(int(cnpj[i]) * (6 - i if i < 5 else 14 - i) for i in range(13))
-    digito = 11 - (soma % 11)
-    if digito >= 10:
-        digito = 0
-    if digito != int(cnpj[13]):
-        return False
-    
-    return True
-
-def gerar_codigo_unico(documento):
-    # Gera um código único baseado no timestamp e últimos 4 dígitos do documento
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    ultimos_digitos = re.sub(r'[^0-9]', '', documento)[-4:]
-    return f"{timestamp}-{ultimos_digitos}"
-
-def gerar_pdf_plantio(dados):
-    # Cria um buffer para o PDF
-    buffer = BytesIO()
-    
-    # Cria o documento PDF
-    doc = SimpleDocTemplate(buffer, pagesize=letter)
-    elements = []
-    
-    # Estilos
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        name='TitleStyle',
-        parent=styles['Heading1'],
-        alignment=1,  # Centralizado
-        spaceAfter=12,
-        textColor=colors.darkgreen
-    )
-    subtitle_style = ParagraphStyle(
-        name='SubtitleStyle',
-        parent=styles['Heading2'],
-        spaceAfter=6,
-        textColor=colors.darkgreen
-    )
-    normal_style = styles['Normal']
-    
-    # Título
-    elements.append(Paragraph("SIPLAN Plantio QR Code", title_style))
-    elements.append(Spacer(1, 0.25*inch))
-    
-    # Informações do Plantio
-    elements.append(Paragraph("Informações do Plantio", subtitle_style))
-    
-    # Dados do cadastro
-    data_cadastro = [
-        ["Código Único:", dados.get('codigo_unico', '')],
-        ["Data do Cadastro:", dados.get('data_cadastro', '')]
-    ]
-    
-    # Adicionar dados da pessoa física
-    if dados.get('nome_pessoa'):
-        data_cadastro.append(["Nome da Pessoa:", dados.get('nome_pessoa', '')])
-    
-    if dados.get('cpf_pessoa'):
-        data_cadastro.append(["CPF:", dados.get('cpf_pessoa', '')])
-    
-    if dados.get('estado') or dados.get('municipio'):
-        localidade = ""
-        if dados.get('municipio'):
-            localidade += dados.get('municipio', '')
-        if dados.get('estado') and dados.get('municipio'):
-            localidade += " - "
-        if dados.get('estado'):
-            localidade += dados.get('estado', '')
-        data_cadastro.append(["Localidade:", localidade])
-    
-    if dados.get('distrito'):
-        data_cadastro.append(["Distrito:", dados.get('distrito', '')])
-    
-    if dados.get('comunidade_rio'):
-        data_cadastro.append(["Comunidade/Rio:", dados.get('comunidade_rio', '')])
-    
-    if dados.get('nome_propriedade'):
-        data_cadastro.append(["Nome da Propriedade:", dados.get('nome_propriedade', '')])
-    
-    if dados.get('numero_propriedade'):
-        data_cadastro.append(["Número da Propriedade:", dados.get('numero_propriedade', '')])
-    
-    if dados.get('numero_caf'):
-        data_cadastro.append(["Número do CAF:", dados.get('numero_caf', '')])
-    
-    # Dados do plantio
-    data_cadastro.extend([
-        ["Nome do Vegetal:", dados.get('nome_vegetal', '')],
-        ["Data do Plantio:", dados.get('data_plantio', '')],
-        ["Tipo de Solo:", dados.get('tipo_solo', '')],
-        ["Frequência de Rega:", dados.get('frequencia_rega', '')],
-        ["Exposição ao Sol:", dados.get('exposicao_sol', '')],
-        ["Tempo até Colheita:", dados.get('tempo_colheita', '')],
-    ])
-    
-    if dados.get('observacoes'):
-        data_cadastro.append(["Observações:", dados.get('observacoes', '')])
-    
-    # Adicionar localização se disponível
-    if dados.get('latitude') and dados.get('longitude'):
-        data_cadastro.append(["Localização:", f"Disponível (Ver no Google Maps)"])
-    
-    # Criar tabela com os dados
-    table = Table(data_cadastro, colWidths=[2*inch, 4*inch])
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.lightgreen),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.darkgreen),
-        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (0, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('BACKGROUND', (1, 0), (1, -1), colors.white),
-        ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-    ]))
-    
-    elements.append(table)
-    elements.append(Spacer(1, 0.5*inch))
-    
-    # Adicionar QR Code
-    elements.append(Paragraph("Escaneie o QR Code para acessar as informações do plantio:", normal_style))
-    
-    # Construir o documento
-    doc.build(elements)
-    
-    # Retornar o buffer
-    buffer.seek(0)
-    return buffer
-
-def gerar_pdf_base64(dados):
-    # Gera o PDF usando a função gerar_pdf_plantio
-    buffer = gerar_pdf_plantio(dados)
-    
-    # Converte para base64
-    pdf_bytes = buffer.getvalue()
-    buffer.close()
-    return base64.b64encode(pdf_bytes).decode()
+# Função para gerar código único
+def gerar_codigo_unico(tamanho=8):
+    caracteres = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(caracteres) for _ in range(tamanho))
 
 @app.route('/')
 def index():
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
-    
-    # Redirecionar para o dashboard
-    return redirect(url_for('dashboard'))
+    if 'tipo_pessoa' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 
-@app.route('/cadastrar-plantio')
-def cadastrar_plantio():
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        tipo_pessoa = request.form.get('tipo_pessoa')
+        
+        if tipo_pessoa == 'fisica':
+            cpf = request.form.get('cpf')
+            nome = request.form.get('nome')
+            
+            # Buscar usuário no banco de dados
+            usuario = Usuario.query.filter_by(cpf=cpf).first()
+            
+            # Se não existir, criar novo usuário
+            if not usuario:
+                usuario = Usuario(
+                    tipo_pessoa='fisica',
+                    nome=nome,
+                    cpf=cpf
+                )
+                db.session.add(usuario)
+                db.session.commit()
+            
+            # Login do usuário
+            login_user(usuario)
+            
+            # Manter compatibilidade com o sistema antigo
+            session['tipo_pessoa'] = 'fisica'
+            session['cpf'] = cpf
+            session['nome'] = nome
+            
+            return redirect(url_for('dashboard'))
+        
+        elif tipo_pessoa == 'juridica':
+            cnpj = request.form.get('cnpj')
+            razao_social = request.form.get('razao_social')
+            
+            # Buscar usuário no banco de dados
+            usuario = Usuario.query.filter_by(cnpj=cnpj).first()
+            
+            # Se não existir, criar novo usuário
+            if not usuario:
+                usuario = Usuario(
+                    tipo_pessoa='juridica',
+                    razao_social=razao_social,
+                    cnpj=cnpj
+                )
+                db.session.add(usuario)
+                db.session.commit()
+            
+            # Login do usuário
+            login_user(usuario)
+            
+            # Manter compatibilidade com o sistema antigo
+            session['tipo_pessoa'] = 'juridica'
+            session['cnpj'] = cnpj
+            session['razao_social'] = razao_social
+            
+            return redirect(url_for('dashboard'))
     
     return render_template('index.html')
 
-@app.route('/validar-documento', methods=['POST'])
-def validar_documento():
-    documento = request.form.get('documento', '')
-    tipo = request.form.get('tipo', '')
-    
-    # Remove caracteres não numéricos para validação
-    documento_limpo = re.sub(r'[^0-9]', '', documento)
-    
-    if tipo == 'cpf':
-        valido = validar_cpf(documento_limpo)
-    else:  # cnpj
-        valido = validar_cnpj(documento_limpo)
-    
-    return jsonify({'valido': valido})
+@app.route('/logout')
+def logout():
+    logout_user()
+    session.clear()
+    return redirect(url_for('login'))
 
-@app.route('/cadastrar', methods=['GET', 'POST'])
-def cadastrar():
-    # Verificar se o usuário está logado
-    if 'logged_in' not in session:
-        return redirect(url_for('login'))
-    
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/cadastrar-plantio', methods=['GET', 'POST'])
+@login_required
+def cadastrar_plantio():
     if request.method == 'POST':
-        try:
-            # Obter dados do formulário
-            nome_vegetal = request.form.get('nome_vegetal')
-            data_plantio = request.form.get('data_plantio')
-            tipo_solo = request.form.get('tipo_solo')
-            
-            # Obter dados da pessoa da sessão
-            nome_pessoa = session.get('nome', '')
-            cpf_pessoa = session.get('cpf', '')
-            
-            # Validar CPF
-            if not cpf_pessoa:
-                return "Usuário não autenticado. Faça login primeiro.", 400
-            
-            # Gerar código único
-            codigo_unico = str(uuid.uuid4())
-            
-            # Obter data atual
-            data_cadastro = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Obter coordenadas de localização
-            latitude = request.form.get('latitude', '')
-            longitude = request.form.get('longitude', '')
-            precisao = request.form.get('precisao', '')
-            
-            # Criar dicionário de dados
-            dados = {
-                'codigo_unico': codigo_unico,
-                'nome_vegetal': nome_vegetal,
-                'data_plantio': data_plantio,
-                'tipo_solo': tipo_solo,
-                'nome_pessoa': nome_pessoa,
-                'cpf_pessoa': cpf_pessoa,
-                'data_cadastro': data_cadastro,
-                'latitude': latitude,
-                'longitude': longitude,
-                'precisao': precisao
-            }
-            
-            # Salvar os dados em um arquivo JSON
-            with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'w') as f:
-                json.dump(dados, f, ensure_ascii=False)
-            
-            # Gera o QR Code
-            try:
-                qr = qrcode.QRCode(
-                    version=1,
-                    error_correction=qrcode.constants.ERROR_CORRECT_L,
-                    box_size=10,
-                    border=4,
-                )
-                
-                # URL simplificada apenas com o código único
-                url = f"https://plantio-info.onrender.com/plantio/{codigo_unico}"
-                print("URL gerada:", url)
-                
-                qr.add_data(url)
-                qr.make(fit=True)
-                
-                img = qr.make_image(fill_color="black", back_color="white")
-                
-                # Converte a imagem para base64
-                buffered = BytesIO()
-                img.save(buffered)
-                img_str = base64.b64encode(buffered.getvalue()).decode()
-                
-                print("QR Code gerado com sucesso")
-                
-                return jsonify({
-                    'success': True,
-                    'qr_code': img_str,
-                    'info': dados
-                })
-                
-            except Exception as e:
-                print("Erro ao gerar QR code:", str(e))
-                return jsonify({
-                    'success': False,
-                    'error': 'Erro ao gerar QR code'
-                })
-                
-        except Exception as e:
-            print("Erro durante o cadastro:", str(e))
-            return jsonify({
-                'success': False,
-                'error': str(e)
-            })
-            
-    # Para GET, preparar o formulário
-    documento = session.get('documento', '')
-    tipo_documento = session.get('tipo_documento', '')
-    
-    # Obter os dados da pessoa física da sessão para pré-preencher o formulário
-    nome_pessoa = session.get('nome', '')
-    cpf_pessoa = session.get('cpf', '')
-    estado = session.get('estado', '')
-    municipio = session.get('municipio', '')
-    distrito = session.get('distrito', '')
-    comunidade_rio = session.get('comunidade_rio', '')
-    nome_propriedade = session.get('nome_propriedade', '')
-    numero_propriedade = session.get('numero_propriedade', '')
-    numero_caf = session.get('numero_caf', '')
-    
-    return render_template('index.html', 
-                          documento=documento, 
-                          tipo_documento=tipo_documento,
-                          nome_pessoa=nome_pessoa,
-                          cpf_pessoa=cpf_pessoa,
-                          estado=estado,
-                          municipio=municipio,
-                          distrito=distrito,
-                          comunidade_rio=comunidade_rio,
-                          nome_propriedade=nome_propriedade,
-                          numero_propriedade=numero_propriedade,
-                          numero_caf=numero_caf)
-
-@app.route('/plantio/<codigo_unico>')
-def visualizar_plantio(codigo_unico):
-    try:
-        # Carregar dados do plantio
-        with open(os.path.join(DATA_DIR, f"{codigo_unico}.json"), 'r') as f:
-            dados = json.load(f)
+        # Gerar código único
+        codigo_unico = gerar_codigo_unico()
         
-        # Carregar histórico de status
-        arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo_unico}.json")
-        if os.path.exists(arquivo_status):
-            with open(arquivo_status, 'r') as f:
-                historico_status = json.load(f)
-        else:
-            historico_status = []
-        
-        # Formatar data de cadastro
-        if 'data_cadastro' in dados:
-            data_cadastro = dados['data_cadastro']
-        else:
-            data_cadastro = "Não disponível"
-        
-        # Verificar se há dados de localização
-        tem_localizacao = 'latitude' in dados and 'longitude' in dados and dados['latitude'] and dados['longitude']
-        
-        # Preparar link do Google Maps
-        google_maps_link = ""
-        if tem_localizacao:
-            google_maps_link = f"https://www.google.com/maps?q={dados['latitude']},{dados['longitude']}"
-        
-        # Gerar QR Code para a visualização
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        
-        # URL para o plantio
-        url = f"{request.host_url}plantio/{codigo_unico}"
-        
-        qr.add_data(url)
-        qr.make(fit=True)
-        
-        img = qr.make_image(fill_color="black", back_color="white")
-        
-        # Converte a imagem para base64
-        buffered = BytesIO()
-        img.save(buffered)
-        qr_code_base64 = base64.b64encode(buffered.getvalue()).decode()
-        
-        return render_template('plantio_publico.html', 
-                              info=dados, 
-                              data_cadastro=data_cadastro,
-                              tem_localizacao=tem_localizacao,
-                              google_maps_link=google_maps_link,
-                              qr_code=qr_code_base64,
-                              historico_status=historico_status)
-    except FileNotFoundError:
-        return "Plantio não encontrado", 404
-
-@app.route('/visualizar/<codigo_unico>')
-def visualizar_plantio_logado(codigo_unico):
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
-        
-    try:
-        # Tentar carregar os dados do arquivo
-        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
-        
-        # Se o arquivo existir, carrega os dados dele
-        if os.path.exists(arquivo_json):
-            with open(arquivo_json, 'r') as f:
-                dados = json.load(f)
-        else:
-            # Caso o arquivo não exista, retorna erro
-            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
-        
-        # Carregar histórico de status
-        arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo_unico}.json")
-        if os.path.exists(arquivo_status):
-            with open(arquivo_status, 'r') as f:
-                historico_status = json.load(f)
-        else:
-            historico_status = []
-            
-        # Verificar se há dados de localização
-        tem_localizacao = 'latitude' in dados and 'longitude' in dados and dados['latitude'] and dados['longitude']
-        
-        # Preparar link do Google Maps
-        google_maps_link = ""
-        if tem_localizacao:
-            google_maps_link = f"https://www.google.com/maps?q={dados['latitude']},{dados['longitude']}"
-        
-        # Formatar data de cadastro
-        if 'data_cadastro' in dados:
-            data_cadastro = dados['data_cadastro']
-        else:
-            data_cadastro = "Não disponível"
-        
-        return render_template('visualizar_plantio.html', 
-                              dados=dados, 
-                              data_cadastro=data_cadastro,
-                              tem_localizacao=tem_localizacao,
-                              google_maps_link=google_maps_link,
-                              historico_status=historico_status)
-    except Exception as e:
-        print("Erro ao visualizar plantio:", str(e))
-        return render_template('error.html', error=f"Erro ao visualizar plantio: {str(e)}"), 500
-
-@app.route('/adicionar-status/<codigo_unico>', methods=['POST'])
-def adicionar_status(codigo_unico):
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
-        
-    try:
-        # Obter os dados do formulário
-        comentario = request.form.get('comentario')
+        # Obter dados do formulário
+        nome_vegetal = request.form.get('nome_vegetal')
+        data_plantio = request.form.get('data_plantio')
+        tipo_solo = request.form.get('tipo_solo')
+        frequencia_rega = request.form.get('frequencia_rega')
+        exposicao_sol = request.form.get('exposicao_sol')
+        tempo_colheita = request.form.get('tempo_colheita')
+        observacoes = request.form.get('observacoes')
         latitude = request.form.get('latitude')
         longitude = request.form.get('longitude')
         precisao = request.form.get('precisao')
         
-        # Obter a data e hora atual
-        data_hora = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        # Converter string de data para objeto date
+        data_plantio_obj = datetime.strptime(data_plantio, '%Y-%m-%d').date()
         
-        # Carregar os dados do arquivo
-        arquivo_json = os.path.join(DATA_DIR, f"{codigo_unico}.json")
+        # Criar novo plantio no banco de dados
+        plantio = Plantio(
+            codigo_unico=codigo_unico,
+            nome_vegetal=nome_vegetal,
+            data_plantio=data_plantio_obj,
+            tipo_solo=tipo_solo,
+            frequencia_rega=frequencia_rega,
+            exposicao_sol=exposicao_sol,
+            tempo_colheita=tempo_colheita,
+            observacoes=observacoes,
+            latitude=float(latitude) if latitude else None,
+            longitude=float(longitude) if longitude else None,
+            precisao=float(precisao) if precisao else None,
+            usuario_id=current_user.id
+        )
+        db.session.add(plantio)
+        db.session.commit()
         
-        if not os.path.exists(arquivo_json):
-            return render_template('error.html', error=f"Plantio com código {codigo_unico} não encontrado"), 404
-            
-        with open(arquivo_json, 'r') as f:
-            dados = json.load(f)
-        
-        # Criar o objeto de status
-        status = {
-            "comentario": comentario,
-            "data_hora": data_hora,
+        # Manter compatibilidade com o sistema antigo
+        dados = {
+            'codigo_unico': codigo_unico,
+            'tipo_documento': 'cpf' if current_user.tipo_pessoa == 'fisica' else 'cnpj',
+            'documento': current_user.cpf if current_user.tipo_pessoa == 'fisica' else current_user.cnpj,
+            'nome_vegetal': nome_vegetal,
+            'data_plantio': data_plantio,
+            'tipo_solo': tipo_solo,
+            'frequencia_rega': frequencia_rega,
+            'exposicao_sol': exposicao_sol,
+            'tempo_colheita': tempo_colheita,
+            'observacoes': observacoes,
+            'data_cadastro': datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+            'latitude': latitude,
+            'longitude': longitude,
+            'precisao': precisao
         }
         
-        # Adicionar localização se disponível
-        if latitude and longitude:
-            status["latitude"] = latitude
-            status["longitude"] = longitude
-            status["precisao"] = precisao
+        # Salvar dados no arquivo JSON (para compatibilidade)
+        with open(os.path.join(DATA_DIR, f'{codigo_unico}.json'), 'w') as f:
+            json.dump(dados, f)
         
-        # Adicionar o status ao histórico
-        if "status_historico" not in dados:
-            dados["status_historico"] = []
-            
-        dados["status_historico"].append(status)
-        
-        # Salvar os dados atualizados
-        with open(arquivo_json, 'w') as f:
-            json.dump(dados, f, indent=4)
-        
-        # Redirecionar para a página de visualização
-        return redirect(url_for('visualizar_plantio_logado', codigo_unico=codigo_unico))
-        
-    except Exception as e:
-        print("Erro ao adicionar status:", str(e))
-        return render_template('error.html', error=f"Erro ao adicionar status: {str(e)}"), 500
+        return redirect(url_for('visualizar_plantio', codigo=codigo_unico))
+    
+    return render_template('cadastrar_plantio.html')
 
-@app.route('/atualizar-status', methods=['POST'])
-def atualizar_status():
-    try:
-        # Verificar se o usuário está logado
-        if 'tipo_pessoa' not in session:
-            return jsonify({
-                'success': False,
-                'message': 'Usuário não está logado'
-            })
-            
-        data = request.json
-        codigo = data['codigo']
+@app.route('/visualizar-plantio/<codigo>')
+@login_required
+def visualizar_plantio(codigo):
+    # Buscar plantio no banco de dados
+    plantio = Plantio.query.filter_by(codigo_unico=codigo).first()
+    
+    if not plantio:
+        return redirect(url_for('listar_plantios'))
+    
+    # Obter histórico de status
+    historico_status = [status.to_dict() for status in plantio.status_historico]
+    
+    return render_template('visualizar_plantio.html', plantio=plantio.to_dict(), historico_status=historico_status)
+
+@app.route('/atualizar-status/<codigo>', methods=['GET', 'POST'])
+@login_required
+def atualizar_status(codigo):
+    # Buscar plantio no banco de dados
+    plantio = Plantio.query.filter_by(codigo_unico=codigo).first()
+    
+    if not plantio:
+        return redirect(url_for('listar_plantios'))
+    
+    if request.method == 'POST':
+        status_id = int(request.form.get('status'))
+        observacao = request.form.get('observacao')
+        latitude = request.form.get('latitude')
+        longitude = request.form.get('longitude')
+        precisao = request.form.get('precisao')
         
-        # Nome do arquivo de histórico
-        arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo}.json")
+        # Mapear ID do status para texto
+        status_texto = {
+            1: 'Em Formação',
+            2: 'Em Transporte',
+            3: 'Em Distribuição',
+            4: 'Plantado'
+        }.get(status_id, 'Desconhecido')
         
-        # Carregar histórico existente ou criar novo
+        # Criar novo status
+        novo_status = StatusPlantio(
+            plantio_id=plantio.id,
+            status=status_id,
+            status_texto=status_texto,
+            observacao=observacao,
+            usuario=current_user.nome if current_user.tipo_pessoa == 'fisica' else current_user.razao_social,
+            latitude=float(latitude) if latitude else None,
+            longitude=float(longitude) if longitude else None,
+            precisao=float(precisao) if precisao else None
+        )
+        db.session.add(novo_status)
+        db.session.commit()
+        
+        # Manter compatibilidade com o sistema antigo
+        status_data = {
+            'status': status_id,
+            'status_texto': status_texto,
+            'observacao': observacao,
+            'usuario': current_user.nome if current_user.tipo_pessoa == 'fisica' else current_user.razao_social,
+            'data_hora': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        
+        if latitude and longitude:
+            status_data['localizacao'] = {
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'precisao': float(precisao) if precisao else 0
+            }
+        
+        # Verificar se já existe arquivo de histórico
+        arquivo_status = os.path.join(STATUS_DIR, f'status_{codigo}.json')
         if os.path.exists(arquivo_status):
             with open(arquivo_status, 'r') as f:
                 historico = json.load(f)
         else:
             historico = []
         
-        # Usar o nome do usuário da sessão se disponível
-        usuario = data.get('usuario', '')
-        if not usuario and 'nome' in session:
-            usuario = session['nome']
-        
-        # Criar novo registro de status
-        novo_status = {
-            'status': int(data['status']),
-            'status_texto': STATUS_TYPES[int(data['status'])],
-            'observacao': data['observacao'],
-            'usuario': usuario,
-            'data_hora': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        
-        # Adicionar coordenadas se disponíveis
-        if 'latitude' in data and 'longitude' in data:
-            novo_status['localizacao'] = {
-                'latitude': data['latitude'],
-                'longitude': data['longitude']
-            }
-        
-        # Adicionar ao histórico
-        historico.append(novo_status)
+        # Adicionar novo status ao histórico
+        historico.append(status_data)
         
         # Salvar histórico atualizado
         with open(arquivo_status, 'w') as f:
-            json.dump(historico, f, indent=4, ensure_ascii=False)
+            json.dump(historico, f)
         
-        return jsonify({
-            'success': True,
-            'message': 'Status atualizado com sucesso'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Erro ao atualizar status: {str(e)}'
-        })
-
-@app.route('/historico-status/<codigo>')
-def historico_status(codigo):
-    try:
-        arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo}.json")
-        
-        if os.path.exists(arquivo_status):
-            with open(arquivo_status, 'r') as f:
-                historico = json.load(f)
-            return jsonify({
-                'success': True,
-                'historico': historico
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'historico': []
-            })
-            
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'Erro ao carregar histórico: {str(e)}'
-        })
-
-@app.route('/gerar-pdf', methods=['POST'])
-def gerar_pdf():
-    try:
-        dados = request.json
-        if not dados:
-            return jsonify({'success': False, 'error': 'Dados não fornecidos'})
-            
-        pdf_base64 = gerar_pdf_base64(dados)
-        return jsonify({'success': True, 'pdf': pdf_base64})
-        
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/login')
-def login():
-    # Se o usuário já estiver logado, redirecionar para o dashboard
-    if 'tipo_pessoa' in session:
-        return redirect(url_for('dashboard'))
+        return redirect(url_for('visualizar_plantio', codigo=codigo))
     
-    return render_template('login.html')
-
-@app.route('/autenticar', methods=['POST'])
-def autenticar():
-    tipo_pessoa = request.form.get('tipo_pessoa')
-    
-    # Limpar a sessão existente
-    session.clear()
-    
-    if tipo_pessoa == 'fisica':
-        cpf = request.form.get('cpf')
-        nome = request.form.get('nome')
-        email = request.form.get('email')
-        telefone = request.form.get('telefone')
-        
-        # Obter os novos campos
-        estado = request.form.get('estado', '')
-        municipio = request.form.get('municipio', '')
-        distrito = request.form.get('distrito', '')
-        comunidade_rio = request.form.get('comunidade_rio', '')
-        nome_propriedade = request.form.get('nome_propriedade', '')
-        numero_propriedade = request.form.get('numero_propriedade', '')
-        numero_caf = request.form.get('numero_caf', '')
-        
-        # Validar CPF
-        cpf_limpo = re.sub(r'[^0-9]', '', cpf)
-        if not validar_cpf(cpf_limpo):
-            return "CPF inválido", 400
-        
-        # Armazenar dados na sessão
-        session['tipo_pessoa'] = 'fisica'
-        session['cpf'] = cpf
-        session['nome'] = nome
-        session['email'] = email
-        session['telefone'] = telefone
-        session['logged_in'] = True
-        session['documento'] = cpf
-        session['tipo_documento'] = 'CPF'
-        
-        # Armazenar os novos campos na sessão
-        session['estado'] = estado
-        session['municipio'] = municipio
-        session['distrito'] = distrito
-        session['comunidade_rio'] = comunidade_rio
-        session['nome_propriedade'] = nome_propriedade
-        session['numero_propriedade'] = numero_propriedade
-        session['numero_caf'] = numero_caf
-        
-    elif tipo_pessoa == 'juridica':
-        cnpj = request.form.get('cnpj')
-        razao_social = request.form.get('razao_social')
-        nome_fantasia = request.form.get('nome_fantasia')
-        email = request.form.get('email')
-        telefone = request.form.get('telefone')
-        
-        # Validar CNPJ
-        cnpj_limpo = re.sub(r'[^0-9]', '', cnpj)
-        if not validar_cnpj(cnpj_limpo):
-            return "CNPJ inválido", 400
-        
-        # Armazenar dados na sessão
-        session['tipo_pessoa'] = 'juridica'
-        session['cnpj'] = cnpj
-        session['razao_social'] = razao_social
-        session['nome_fantasia'] = nome_fantasia
-        session['email'] = email
-        session['telefone'] = telefone
-        session['logged_in'] = True
-        session['documento'] = cnpj
-        session['tipo_documento'] = 'CNPJ'
-    
-    else:
-        return "Tipo de pessoa inválido", 400
-    
-    # Calcular estatísticas para o dashboard
-    calcular_estatisticas()
-    
-    return redirect(url_for('dashboard'))
-
-def calcular_estatisticas():
-    """Calcula estatísticas para exibir no dashboard"""
-    plantios = []
-    especies = set()
-    ultimo_plantio = None
-    
-    # Verificar se o diretório existe
-    if os.path.exists(DATA_DIR):
-        for arquivo in os.listdir(DATA_DIR):
-            if arquivo.endswith('.json'):
-                with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
-                    dados = json.load(f)
-                    plantios.append(dados)
-                    
-                    if 'especie' in dados:
-                        especies.add(dados['especie'])
-                    
-                    # Verificar se é o plantio mais recente
-                    if 'data_plantio' in dados:
-                        data_plantio = dados['data_plantio']
-                        if ultimo_plantio is None or data_plantio > ultimo_plantio:
-                            ultimo_plantio = data_plantio
-    
-    # Armazenar estatísticas na sessão
-    session['total_plantios'] = len(plantios)
-    session['total_especies'] = len(especies)
-    session['ultimo_plantio'] = ultimo_plantio if ultimo_plantio else "Nenhum"
-
-@app.route('/dashboard')
-def dashboard():
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
-    
-    return render_template('dashboard.html')
+    return render_template('atualizar_status.html', plantio=plantio.to_dict())
 
 @app.route('/listar-plantios')
+@login_required
 def listar_plantios():
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
+    # Buscar plantios do usuário atual
+    plantios_db = Plantio.query.filter_by(usuario_id=current_user.id).all()
     
-    # Carregar os dados dos plantios
     plantios = []
-    if os.path.exists(DATA_DIR):
-        for arquivo in os.listdir(DATA_DIR):
-            if arquivo.endswith('.json'):
-                with open(os.path.join(DATA_DIR, arquivo), 'r') as f:
-                    dados = json.load(f)
-                    
-                    # Obter o status atual do arquivo de histórico
-                    status_atual = None
-                    codigo_unico = dados.get("codigo_unico")
-                    arquivo_status = os.path.join(STATUS_DIR, f"status_{codigo_unico}.json")
-                    
-                    if os.path.exists(arquivo_status):
-                        try:
-                            with open(arquivo_status, 'r') as fs:
-                                historico = json.load(fs)
-                                if historico and len(historico) > 0:
-                                    ultimo_status = historico[-1]  # Pegar o último status
-                                    status_texto = ultimo_status.get("status_texto", "")
-                                    observacao = ultimo_status.get("observacao", "")
-                                    status_atual = f"{status_texto}: {observacao}" if observacao else status_texto
-                        except Exception as e:
-                            print(f"Erro ao ler arquivo de status: {str(e)}")
-                    
-                    # Adicionar o status atual aos dados do plantio
-                    dados["status_atual"] = status_atual
-                    
-                    plantios.append(dados)
+    for plantio in plantios_db:
+        plantio_dict = plantio.to_dict()
+        
+        # Obter o status atual
+        ultimo_status = plantio.ultimo_status()
+        if ultimo_status:
+            status_atual = f"{ultimo_status.status_texto}: {ultimo_status.observacao}" if ultimo_status.observacao else ultimo_status.status_texto
+            plantio_dict['status_atual'] = status_atual
+        
+        plantios.append(plantio_dict)
     
     return render_template('listar_plantios.html', plantios=plantios)
 
-@app.route('/escanear')
-def escanear():
-    # Verificar se o usuário está logado
-    if 'tipo_pessoa' not in session:
-        return redirect(url_for('login'))
+@app.route('/gerar-qrcode/<codigo>')
+@login_required
+def gerar_qrcode(codigo):
+    # Gerar URL para o QR Code
+    url = request.host_url + 'plantio/' + codigo
     
-    return render_template('escanear.html')
+    # Gerar QR Code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Salvar QR Code em um buffer
+    buffer = BytesIO()
+    img.save(buffer)
+    buffer.seek(0)
+    
+    return send_file(buffer, mimetype='image/png')
 
-@app.route('/logout')
-def logout():
-    # Limpar todos os dados da sessão
-    session.clear()
-    return redirect(url_for('login'))
+@app.route('/gerar-etiqueta/<codigo>')
+@login_required
+def gerar_etiqueta(codigo):
+    # Buscar plantio no banco de dados
+    plantio = Plantio.query.filter_by(codigo_unico=codigo).first()
+    
+    if not plantio:
+        return redirect(url_for('listar_plantios'))
+    
+    # Gerar URL para o QR Code
+    url = request.host_url + 'plantio/' + codigo
+    
+    # Gerar QR Code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Salvar QR Code em um buffer
+    buffer = BytesIO()
+    img.save(buffer)
+    buffer.seek(0)
+    
+    # Criar PDF
+    pdf_buffer = BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=letter)
+    
+    # Adicionar título
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(100, 750, "Etiqueta de Plantio")
+    
+    # Adicionar informações do plantio
+    c.setFont("Helvetica", 12)
+    c.drawString(100, 720, f"Código: {plantio.codigo_unico}")
+    c.drawString(100, 700, f"Vegetal: {plantio.nome_vegetal}")
+    c.drawString(100, 680, f"Data de Plantio: {plantio.data_plantio.strftime('%d/%m/%Y')}")
+    c.drawString(100, 660, f"Frequência de Rega: {plantio.frequencia_rega}")
+    c.drawString(100, 640, f"Exposição ao Sol: {plantio.exposicao_sol}")
+    
+    # Adicionar QR Code
+    qr_img = ImageReader(buffer)
+    c.drawImage(qr_img, 100, 450, width=200, height=200)
+    
+    c.showPage()
+    c.save()
+    
+    pdf_buffer.seek(0)
+    
+    return send_file(pdf_buffer, mimetype='application/pdf', download_name=f'etiqueta_{codigo}.pdf')
 
-@app.errorhandler(500)
-def internal_error(error):
-    app.logger.error(f'Server Error: {error}')
-    return render_template('error.html', error=error), 500
+@app.route('/plantio/<codigo>')
+def plantio_publico(codigo):
+    # Buscar plantio no banco de dados
+    plantio = Plantio.query.filter_by(codigo_unico=codigo).first()
+    
+    if not plantio:
+        return render_template('plantio_nao_encontrado.html')
+    
+    # Obter histórico de status
+    historico_status = [status.to_dict() for status in plantio.status_historico]
+    
+    return render_template('plantio_publico.html', plantio=plantio.to_dict(), historico_status=historico_status)
 
-@app.errorhandler(404)
-def not_found_error(error):
-    return render_template('error.html', error=error), 404
+# Inicializar o banco de dados
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
-    import os
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(debug=True)

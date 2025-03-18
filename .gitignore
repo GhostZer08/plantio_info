@@ -18,3 +18,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# Banco de dados SQLite
+*.db
+*.sqlite
+*.sqlite3
